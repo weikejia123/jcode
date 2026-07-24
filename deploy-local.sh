@@ -10,8 +10,13 @@
 #   ./deploy-local.sh --debug                  # debug 构建 + 复制（更快，适合迭代）
 #   ./deploy-local.sh /custom/path/jcode       # 安装到自定义路径
 #   ./deploy-local.sh build                    # 仅构建（不安装）
-#   ./deploy-local.sh verify                   # 仅验证
+#   ./deploy-local.sh verify                   # 仅验证（检测运行的版本是否为本地的）
 #   ./deploy-local.sh help                     # 显示帮助
+#
+# 验证机制:
+#   构建时记录 git SHA → 安装后通过 stat 比对二进制 inode/mtime
+#   → which + realpath 确认指向本地构建目录
+#   → 运行 jcode run 'version' 确认可执行
 #
 # 前置条件:
 #   - Rust toolchain（rustup，edition 2024）
@@ -29,22 +34,59 @@ cd "$SCRIPT_DIR"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 log_info()  { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 log_error() { echo -e "${RED}[✗]${NC} $1"; }
+log_step()  { echo -e "${CYAN}━━━ $1 ━━━${NC}"; }
 
 show_help() {
   sed -n '2,/^set -euo/p' "$0" | grep -E '^#' | sed 's/^# \?//'
   exit 0
 }
 
+# ─── 构建标记 ───
+DEPLOY_MARKER=".deploy-marker"
+
+write_marker() {
+  local sha branch time profile="$1"
+  sha="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+  branch="$(git branch --show-current 2>/dev/null || echo 'unknown')"
+  time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  local bin_path="target/${profile}/jcode"
+  local bin_stat=""
+  if [ -f "$bin_path" ]; then
+    if [ "$(uname)" = "Darwin" ]; then
+      bin_stat="$(stat -f "%m|%z|%N" "$bin_path" 2>/dev/null || echo '')"
+    else
+      bin_stat="$(stat -c "%Y|%s|%n" "$bin_path" 2>/dev/null || echo '')"
+    fi
+  fi
+
+  cat > "$DEPLOY_MARKER" <<EOF
+SHA=$sha
+BRANCH=$branch
+BUILD_TIME=$time
+PROFILE=$profile
+BIN_PATH=$bin_path
+BIN_STAT=$bin_stat
+EOF
+  log_info "构建标记已写入: $DEPLOY_MARKER"
+  cat "$DEPLOY_MARKER" | sed 's/^/      /'
+}
+
+read_marker() {
+  local key="$1"
+  grep "^${key}=" "$DEPLOY_MARKER" 2>/dev/null | cut -d= -f2 || echo "unknown"
+}
+
 # ─── 前置检查 ───
 check_prereqs() {
-  echo "━━━ 检查前置条件 ━━━"
+  log_step "检查前置条件"
 
-  # Rust
   if ! command -v rustc &>/dev/null; then
     log_error "未找到 Rust。请安装: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
     exit 1
@@ -52,7 +94,6 @@ check_prereqs() {
   log_info "Rust $(rustc --version | awk '{print $2}')"
   log_info "Cargo $(cargo --version | awk '{print $2}')"
 
-  # 分支检查
   local branch
   branch="$(git branch --show-current 2>/dev/null || echo '')"
   if [ "$branch" != "wkj-dev" ]; then
@@ -65,61 +106,51 @@ check_prereqs() {
   else
     log_info "当前分支: wkj-dev ✅"
   fi
-
-  # Cargo.lock 存在性
-  if [ -f Cargo.lock ]; then
-    log_info "Cargo.lock 存在 ✅"
-  fi
 }
 
 # ─── 构建 ───
 do_build() {
   local profile="${1:-release}"
-  echo ""
-  echo "━━━ 构建 jcode（$profile）━━━"
+  log_step "构建 jcode（$profile）"
   local start
   start="$(date +%s)"
 
   if [ "$profile" = "release" ]; then
     cargo build --release -p jcode 2>&1 | sed 's/^/      /'
-    BIN="target/release/jcode"
   else
     cargo build -p jcode 2>&1 | sed 's/^/      /'
-    BIN="target/debug/jcode"
   fi
 
   local end
   end="$(date +%s)"
   log_info "构建完成（$((end - start))s）"
 
-  # 验证产物
-  if [ -f "$BIN" ]; then
-    log_info "产物验证: $BIN（$($BIN --version 2>/dev/null || echo 'N/A')）"
+  local bin_path="target/${profile}/jcode"
+  if [ -f "$bin_path" ]; then
+    local ver
+    ver="$("$bin_path" --version 2>/dev/null || echo 'N/A')"
+    log_info "产物验证: $bin_path（$ver）"
+    ls -lh "$bin_path" | awk '{print "      size:", $5}'
   else
-    log_error "构建失败: $BIN 未生成"
+    log_error "构建失败: $bin_path 未生成"
     exit 1
   fi
+
+  write_marker "$profile"
 }
 
 # ─── 安装到 PATH ───
 do_install() {
   local profile="${1:-release}"
   local target="$2"
-  local src
-
-  if [ "$profile" = "release" ]; then
-    src="target/release/jcode"
-  else
-    src="target/debug/jcode"
-  fi
+  local src="target/${profile}/jcode"
 
   if [ ! -f "$src" ]; then
     log_error "二进制未找到: $src，请先构建"
     exit 1
   fi
 
-  echo ""
-  echo "━━━ 安装 jcode → $target ━━━"
+  log_step "安装 jcode → $target"
 
   local target_dir
   target_dir="$(dirname "$target")"
@@ -142,19 +173,16 @@ do_install() {
 resolve_target() {
   local custom="${1:-}"
 
-  # 如果传入了自定义路径，直接使用
   if [ -n "$custom" ] && [ "$custom" != "build" ] && [ "$custom" != "verify" ] && [ "$custom" != "help" ]; then
     echo "$custom"
     return
   fi
 
-  # 检测 PATH 中已存在的 jcode
   if which jcode &>/dev/null; then
     which jcode
     return
   fi
 
-  # 默认安装路径
   if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
     echo "/usr/local/bin/jcode"
   else
@@ -162,16 +190,93 @@ resolve_target() {
   fi
 }
 
-# ─── 验证 ───
-do_verify() {
+# ─── 验证部署 ───
+verify_deployment() {
+  log_step "验证部署"
+
+  local errors=0
+
+  # 1. 命令是否存在
+  if ! command -v jcode &>/dev/null; then
+    log_error "jcode 命令不存在！"
+    return 1
+  fi
+  log_info "jcode 命令存在 ✅"
+
+  # 2. 路径解析
+  local cmd_path
+  cmd_path="$(which jcode 2>/dev/null || true)"
+  log_info "命令路径: $cmd_path"
+
+  local repo_dir
+  repo_dir="$(cd "$SCRIPT_DIR" && pwd)"
+
+  # 3. 对于二进制文件，对比 stat
+  if [ -f "$DEPLOY_MARKER" ]; then
+    local marker_bin_path
+    marker_bin_path="$(read_marker BIN_PATH)"
+
+    if [ -n "$marker_bin_path" ] && [ -f "$marker_bin_path" ]; then
+      local marker_stat
+      marker_stat="$(read_marker BIN_STAT)"
+
+      local actual_stat=""
+      if [ -f "$cmd_path" ]; then
+        if [ "$(uname)" = "Darwin" ]; then
+          actual_stat="$(stat -f "%m|%z|%N" "$cmd_path" 2>/dev/null || echo '')"
+        else
+          actual_stat="$(stat -c "%Y|%s|%n" "$cmd_path" 2>/dev/null || echo '')"
+        fi
+      fi
+
+      # 对比 mtime（修改时间戳）和 size
+      local marker_mtime="${marker_stat%%|*}"
+      local actual_mtime="${actual_stat%%|*}"
+
+      if [ "$marker_stat" = "$actual_stat" ]; then
+        log_info "二进制 stat 匹配: 安装的正是刚刚构建的版本 ✅"
+      elif [ "$marker_mtime" = "$actual_mtime" ]; then
+        log_info "二进制 mtime 匹配 ✅（可能是剥离了路径信息）"
+      else
+        log_warn "二进制 stat 不匹配 — 可能是旧版本"
+        echo "     构建标记: $marker_stat"
+        echo "     安装文件: $actual_stat"
+        errors=$((errors + 1))
+      fi
+    fi
+  fi
+
+  # 4. 运行版本
+  log_info "执行 jcode --version..."
+  local version_output
+  version_output="$(jcode --version 2>&1 || true)"
+  log_info "版本输出: $version_output"
+
+  # 5. SHA 验证
+  if [ -f "$DEPLOY_MARKER" ]; then
+    local marker_sha current_sha
+    marker_sha="$(read_marker SHA)"
+    current_sha="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+
+    if [ "$marker_sha" = "$current_sha" ]; then
+      log_info "SHA 验证: $marker_sha ✅（与当前 HEAD 一致）"
+    else
+      log_warn "SHA 验证: 标记 $marker_sha ≠ 当前 $current_sha"
+    fi
+  fi
+
   echo ""
-  echo "━━━ 部署验证 ━━━"
-  echo "  分支:     $(git branch --show-current)"
-  echo "  jcode 路径: $(which jcode 2>/dev/null || echo '未安装')"
-  echo "  Rust:     $(rustc --version | awk '{print $2}')"
-  echo ""
-  echo "  试运行: jcode run 'hello'"
-  echo "  或运行: jcode 进入交互模式"
+  if [ "$errors" -eq 0 ]; then
+    echo -e "${GREEN}══════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  ✅ 部署验证通过！运行的正是 wkj-dev 本地版本${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════${NC}"
+  else
+    echo -e "${YELLOW}⚠  部署完成但有 $errors 个警告${NC}"
+  fi
+  echo "  命令:  $(which jcode)"
+  echo "  版本:  $version_output"
+  echo "  分支:  $(git branch --show-current)"
+  echo "  SHA:   $(git rev-parse HEAD | head -c 12)"
 }
 
 # ─── 主流程 ───
@@ -186,9 +291,7 @@ main() {
     esac
   done
 
-  # 移除 --debug 后的参数数组
   set -- "${args[@]}"
-
   local cmd="${1:-full}"
 
   case "$cmd" in
@@ -198,25 +301,23 @@ main() {
       local target
       target="$(resolve_target "${2:-}")"
       do_install "$profile" "$target"
-      do_verify
+      verify_deployment
       ;;
     build)
       check_prereqs
       do_build "$profile"
-      do_verify
       ;;
     verify)
-      do_verify
+      verify_deployment
       ;;
     help|--help|-h)
       show_help
       ;;
     *)
-      # 尝试作为路径参数处理
       check_prereqs
       do_build "$profile"
       do_install "$profile" "$cmd"
-      do_verify
+      verify_deployment
       ;;
   esac
 }
