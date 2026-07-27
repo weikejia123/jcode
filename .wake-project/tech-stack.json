@@ -1,0 +1,4775 @@
+{
+  "schema_version": "9",
+  "project_id": "019fa34f-ca5e-75e2-b2e2-d6ddb6f23dcc",
+  "scan_id": "019fa34f-cc9e-7f82-974f-67e16f3582cf",
+  "scanned_at": "2026-07-27T11:22:23Z",
+  "tech_stack": [
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "async-stream",
+      "category": "library",
+      "version": "0.3",
+      "dev": true,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "clap",
+      "category": "framework",
+      "version": "4",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "hex",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-anthropic-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-antigravity-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-claude-cli-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-copilot-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-cursor-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-doctor",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openai-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openrouter-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-tui",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-tui",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-session-picker",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "open",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "rustls",
+      "category": "library",
+      "version": "0.23",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "tikv-jemallocator",
+      "category": "library",
+      "version": "0.6",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "tokio-tungstenite",
+      "category": "library",
+      "version": "0.24",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "toml",
+      "category": "library",
+      "version": "0.8",
+      "dev": false,
+      "source": "Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-agent-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": true,
+      "source": "crates/jcode-agent-runtime/Cargo.toml"
+    },
+    {
+      "name": "thiserror",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-agent-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-ambient-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-ambient-types/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "agentgrep",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "async-stream",
+      "category": "library",
+      "version": "0.3",
+      "dev": true,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "flate2",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "glob",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-agent-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-ambient-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-support",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-import-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-notify-email",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-overnight-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-pdf",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-plan",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-setup-hints",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-swarm-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-task-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-terminal-image",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-tool-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-tool-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-update-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "open",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "regex",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "similar",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "tar",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "tokio-util",
+      "category": "library",
+      "version": "0.7",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "url",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "urlencoding",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-app-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-auth-types/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-azure-auth/Cargo.toml"
+    },
+    {
+      "name": "azure_core",
+      "category": "library",
+      "version": "1.0",
+      "dev": false,
+      "source": "crates/jcode-azure-auth/Cargo.toml"
+    },
+    {
+      "name": "azure_identity",
+      "category": "library",
+      "version": "1.0",
+      "dev": false,
+      "source": "crates/jcode-azure-auth/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-background-types/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "hex",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "image",
+      "category": "library",
+      "version": "0.25",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-agent-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-auth-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-azure-auth",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-background-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-batch-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-compaction-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-config-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-embedding",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-gateway-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-import-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-memory-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-plan",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-protocol",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-antigravity",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-bedrock",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-copilot",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-env",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-metadata",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openai",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openrouter",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openrouter-runtime",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-render-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-side-panel-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-task-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-telemetry-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-terminal-image",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-terminal-launch",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-tool-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-tool-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "jcode-usage-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "open",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "proctitle",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "qrcode",
+      "category": "library",
+      "version": "0.14.1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "regex",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "serde_yaml",
+      "category": "library",
+      "version": "0.9",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "tikv-jemalloc-ctl",
+      "category": "library",
+      "version": "0.6",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "tikv-jemalloc-sys",
+      "category": "library",
+      "version": "0.6",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "tokio-tungstenite",
+      "category": "library",
+      "version": "0.24",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "toml",
+      "category": "library",
+      "version": "0.8",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "url",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "urlencoding",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-base/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-batch-types/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-batch-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-build-support/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-compaction-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-compaction-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-config-types/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-config-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-core/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-core/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "ab_glyph",
+      "category": "library",
+      "version": "0.2.32",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "arboard",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "bytemuck",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "glyphon",
+      "category": "library",
+      "version": "0.5",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "image",
+      "category": "library",
+      "version": "0.25",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "jcode-fuzzy",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-messages",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "pollster",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "pulldown-cmark",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "wgpu",
+      "category": "library",
+      "version": "0.19",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "winit",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-desktop/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-embedding/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-embedding/Cargo.toml"
+    },
+    {
+      "name": "tokenizers",
+      "category": "library",
+      "version": "0.21",
+      "dev": false,
+      "source": "crates/jcode-embedding/Cargo.toml"
+    },
+    {
+      "name": "tract-hir",
+      "category": "library",
+      "version": "0.21",
+      "dev": false,
+      "source": "crates/jcode-embedding/Cargo.toml"
+    },
+    {
+      "name": "tract-onnx",
+      "category": "library",
+      "version": "0.21",
+      "dev": false,
+      "source": "crates/jcode-embedding/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-gateway-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "hex",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-import-core/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-logging/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-logging/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-logging/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-logging/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-logging/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-memory-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-memory-types/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-memory-types/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-memory-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-message-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-message-types/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-message-types/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "imap",
+      "category": "library",
+      "version": "3.0.0-alpha.15",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "lettre",
+      "category": "library",
+      "version": "0.11.22",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "mail-parser",
+      "category": "library",
+      "version": "0.9",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "native-tls",
+      "category": "library",
+      "version": "0.2.18",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "pulldown-cmark",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "urlencoding",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-notify-email/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-overnight-core/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-overnight-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-overnight-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-pdf/Cargo.toml"
+    },
+    {
+      "name": "pdf-extract",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-pdf/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-plan/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-plan/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "rayon",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "resvg",
+      "category": "library",
+      "version": "0.46",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "usvg",
+      "category": "library",
+      "version": "0.46",
+      "dev": false,
+      "source": "crates/jcode-productivity-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": true,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-batch-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-config-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-plan",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "jcode-side-panel-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9",
+      "dev": true,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-protocol/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-anthropic",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-anthropic/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-antigravity",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-antigravity/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-config",
+      "category": "library",
+      "version": "1.9.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-credential-types",
+      "category": "library",
+      "version": "1.3.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-sdk-bedrock",
+      "category": "library",
+      "version": "1.148.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-sdk-bedrockruntime",
+      "category": "library",
+      "version": "1.136.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-sdk-sts",
+      "category": "library",
+      "version": "1.108.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-smithy-types",
+      "category": "library",
+      "version": "1.6.1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "aws-types",
+      "category": "library",
+      "version": "1.4.0",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-env",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-bedrock/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-claude-cli-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-copilot",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-copilot/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-copilot/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": true,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "httpdate",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-provider-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "bytes",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "flate2",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "h2",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "http",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-rustls",
+      "category": "library",
+      "version": "0.26",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "webpki-roots",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-cursor-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": true,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-anthropic-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-antigravity-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-copilot-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-cursor-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-metadata",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openai-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openrouter-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-doctor/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-metadata",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-env/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-gemini",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-gemini/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-gemini/Cargo.toml"
+    },
+    {
+      "name": "url",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-provider-metadata/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openai",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-tungstenite",
+      "category": "library",
+      "version": "0.24",
+      "dev": false,
+      "source": "crates/jcode-provider-openai-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "bytes",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openai/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "bytes",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-metadata",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-openrouter",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "tokio-stream",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "toml",
+      "category": "library",
+      "version": "0.8",
+      "dev": true,
+      "source": "crates/jcode-provider-openrouter-runtime/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "bytes",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-provider-openrouter/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-render-core/Cargo.toml"
+    },
+    {
+      "name": "pulldown-cmark",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-render-core/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-render-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-selfdev-types/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-selfdev-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-selfdev-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-session-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-session-types/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-session-types/Cargo.toml"
+    },
+    {
+      "name": "memchr",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-session-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "jcode-config-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "jcode-terminal-launch",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "toml",
+      "category": "library",
+      "version": "0.8",
+      "dev": false,
+      "source": "crates/jcode-setup-hints/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-side-panel-types/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-storage/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-swarm-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-plan",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-swarm-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-task-types/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-task-types/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-storage",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-usage-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": true,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "uuid",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "walkdir",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-telemetry-core/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-terminal-image/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-terminal-image/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-terminal-launch/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-terminal-launch/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-agent-runtime",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-tool-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tool-core/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tool-types/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui-account-picker/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-account-picker/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-account-picker/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-account-picker/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-account-picker/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-core/Cargo.toml"
+    },
+    {
+      "name": "jcode-memory-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-core/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "image",
+      "category": "library",
+      "version": "0.25",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "jcode-render-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-mermaid",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-workspace",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "mdwright-latex",
+      "category": "library",
+      "version": "0.1.3",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "pulldown-cmark",
+      "category": "library",
+      "version": "0.12",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "syntect",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "wait-timeout",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui-markdown/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "image",
+      "category": "library",
+      "version": "0.25",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "jcode-plan",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-workspace",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "mermaid-rs-renderer",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "ratatui-image",
+      "category": "library",
+      "version": "10.0.6",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "resvg",
+      "category": "library",
+      "version": "0.46",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "usvg",
+      "category": "library",
+      "version": "0.46",
+      "dev": false,
+      "source": "crates/jcode-tui-mermaid/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "jcode-config-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-markdown",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-messages/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "jcode-base",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-style",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-permissions/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-render/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui-render/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-style",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-render/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui-render/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-session-picker/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui-session-picker/Cargo.toml"
+    },
+    {
+      "name": "jcode-message-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-session-picker/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-session-picker/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-style/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui-tool-display/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "jcode-usage-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-usage-overlay/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "regex",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui-visual-debug/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui-workspace/Cargo.toml"
+    },
+    {
+      "name": "Crossterm",
+      "category": "library",
+      "version": "0.29",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "Ratatui",
+      "category": "framework",
+      "version": "0.30",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "arboard",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "async-trait",
+      "category": "library",
+      "version": "0.1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "base64",
+      "category": "library",
+      "version": "0.22",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "chrono",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "dirs",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "futures",
+      "category": "library",
+      "version": "0.3",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "hex",
+      "category": "library",
+      "version": "0.4",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "image",
+      "category": "library",
+      "version": "0.25",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-app-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-app-core",
+      "category": "library",
+      "version": null,
+      "dev": true,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-build-meta",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-config-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-fuzzy",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-logging",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-productivity-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-provider-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-selfdev-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-session-types",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-terminal-image",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-account-picker",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-anim",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-core",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-markdown",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-mermaid",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-messages",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-permissions",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-render",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-session-picker",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-style",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-tool-display",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-usage-overlay",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-visual-debug",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "jcode-tui-workspace",
+      "category": "library",
+      "version": null,
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "libc",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "open",
+      "category": "library",
+      "version": "5",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "rand",
+      "category": "library",
+      "version": "0.9.3",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "regex",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "similar",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "tempfile",
+      "category": "library",
+      "version": "3",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "terminal-colorsaurus",
+      "category": "library",
+      "version": "1.0",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "unicode-width",
+      "category": "library",
+      "version": "0.2",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "url",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "urlencoding",
+      "category": "library",
+      "version": "2",
+      "dev": false,
+      "source": "crates/jcode-tui/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-update-core/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-update-core/Cargo.toml"
+    },
+    {
+      "name": "sha2",
+      "category": "library",
+      "version": "0.10",
+      "dev": false,
+      "source": "crates/jcode-update-core/Cargo.toml"
+    },
+    {
+      "name": "Serde",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-usage-types/Cargo.toml"
+    },
+    {
+      "name": "serde_json",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "crates/jcode-usage-types/Cargo.toml"
+    },
+    {
+      "name": "Tokio",
+      "category": "runtime",
+      "version": "1",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "anyhow",
+      "category": "library",
+      "version": "1",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "rcgen",
+      "category": "library",
+      "version": "0.13",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "reqwest",
+      "category": "library",
+      "version": "=0.12.28",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "rustls",
+      "category": "library",
+      "version": "0.23",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "tokio-rustls",
+      "category": "library",
+      "version": "0.26",
+      "dev": false,
+      "source": "scripts/repro/tls-bad-record-mac/Cargo.toml"
+    },
+    {
+      "name": "wrangler",
+      "category": "library",
+      "version": "^4",
+      "dev": true,
+      "source": "telemetry-worker/package.json"
+    }
+  ]
+}

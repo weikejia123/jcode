@@ -1,0 +1,598 @@
+{
+  "schema_version": "9",
+  "project_id": "019fa34f-ca5e-75e2-b2e2-d6ddb6f23dcc",
+  "scan_id": "019fa34f-cc9e-7f82-974f-67e16f3582cf",
+  "scanned_at": "2026-07-27T11:22:23Z",
+  "duration_ms": 255,
+  "is_git_repo": true,
+  "git": {
+    "root": "/Users/weikejia/CODE/my-agent-group/projects/coder-agent/jcode",
+    "branch": "wkj-dev",
+    "remotes": [
+      {
+        "name": "gitea",
+        "url": "http://localhost:3000/dzsoft/jcode.git",
+        "host": "localhost",
+        "owner": "dzsoft",
+        "repo": "jcode"
+      },
+      {
+        "name": "origin",
+        "url": "https://github.com/weikejia123/jcode.git",
+        "host": "github.com",
+        "owner": "weikejia123",
+        "repo": "jcode"
+      },
+      {
+        "name": "upstream",
+        "url": "https://github.com/1jehuang/jcode.git",
+        "host": "github.com",
+        "owner": "1jehuang",
+        "repo": "jcode"
+      }
+    ],
+    "head": "9a08d68d",
+    "path_prefix": "",
+    "has_commit_hooks": false,
+    "has_upstream": true,
+    "is_detached_head": false,
+    "dirty_file_count": 1,
+    "has_untracked": true,
+    "ahead_count": 8,
+    "behind_count": 0,
+    "latest_tag": "v0.54.4",
+    "submodules": []
+  },
+  "detected_languages": [
+    {
+      "language": "Rust",
+      "files": 1102
+    },
+    {
+      "language": "Python",
+      "files": 102
+    },
+    {
+      "language": "Swift",
+      "files": 26
+    },
+    {
+      "language": "JavaScript",
+      "files": 3
+    }
+  ],
+  "manifests": [
+    "Cargo.toml"
+  ],
+  "key_files": [
+    ".gitignore",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "key_dirs": [
+    ".github",
+    "assets",
+    "crates",
+    "docs",
+    "examples",
+    "scripts",
+    "src",
+    "tests"
+  ],
+  "manifests_detail": [
+    {
+      "path": "Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode",
+      "version": "0.54.4"
+    },
+    {
+      "path": "crates/jcode-agent-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-agent-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-ambient-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-ambient-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-app-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-app-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-auth-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-auth-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-azure-auth/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-azure-auth",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-background-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-background-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-base/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-base",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-batch-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-batch-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-build-meta/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-build-meta",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-build-support/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-build-support",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-compaction-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-compaction-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-config-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-config-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-desktop/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-desktop",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-embedding/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-embedding",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-fuzzy/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-fuzzy",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-gateway-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-gateway-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-import-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-import-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-logging/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-logging",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-memory-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-memory-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-message-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-message-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-notify-email/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-notify-email",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-overnight-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-overnight-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-pdf/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-pdf",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-plan/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-plan",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-productivity-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-productivity-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-protocol/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-protocol",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-anthropic-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-anthropic-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-anthropic/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-anthropic",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-antigravity-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-antigravity-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-antigravity/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-antigravity",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-bedrock/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-bedrock",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-claude-cli-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-claude-cli-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-copilot-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-copilot-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-copilot/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-copilot",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-cursor-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-cursor-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-doctor/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-doctor",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-env/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-env",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-gemini-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-gemini-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-gemini/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-gemini",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-metadata/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-metadata",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-openai-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-openai-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-openai/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-openai",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-openrouter-runtime/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-openrouter-runtime",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-provider-openrouter/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-provider-openrouter",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-render-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-render-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-selfdev-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-selfdev-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-session-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-session-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-setup-hints/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-setup-hints",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-side-panel-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-side-panel-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-storage/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-storage",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-swarm-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-swarm-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-task-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-task-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-telemetry-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-telemetry-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-terminal-image/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-terminal-image",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-terminal-launch/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-terminal-launch",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tool-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tool-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tool-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tool-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-account-picker/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-account-picker",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-anim/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-anim",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-markdown/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-markdown",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-mermaid/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-mermaid",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-messages/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-messages",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-permissions/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-permissions",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-render/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-render",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-session-picker/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-session-picker",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-style/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-style",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-tool-display/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-tool-display",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-usage-overlay/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-usage-overlay",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-visual-debug/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-visual-debug",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui-workspace/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui-workspace",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-tui/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-tui",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-update-core/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-update-core",
+      "version": "0.1.0"
+    },
+    {
+      "path": "crates/jcode-usage-types/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "jcode-usage-types",
+      "version": "0.1.0"
+    },
+    {
+      "path": "scripts/repro/tls-bad-record-mac/Cargo.toml",
+      "kind": "Cargo.toml",
+      "name": "tls-bad-record-mac-repro",
+      "version": "0.1.0"
+    },
+    {
+      "path": "telemetry-worker/package.json",
+      "kind": "package.json",
+      "name": "jcode-telemetry",
+      "version": "1.0.0"
+    }
+  ],
+  "package_managers": [
+    "cargo"
+  ],
+  "timeline": {
+    "first_commit_at": "2026-01-05T01:43:29-08:00",
+    "last_commit_at": "2026-07-24T13:34:08+08:00",
+    "shallow_clone": false,
+    "last_file_modified_at": "2026-07-24T08:40:28Z",
+    "last_core_file_modified_at": "2026-07-23T23:46:34Z",
+    "local_arrival_at": "2026-07-23T08:40:23Z",
+    "local_arrival_source": "git_dir_birthtime",
+    "local_arrival_approximate": true
+  },
+  "totals": {
+    "file_count": 1614,
+    "size_bytes": 212954758,
+    "scope": "excluding_ignored_dirs"
+  },
+  "ignored_dirs": [
+    ".git",
+    ".next",
+    ".venv",
+    ".wake-project",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "target",
+    "venv"
+  ],
+  "manifest_parse_errors": [],
+  "nested_repos": [],
+  "has_ci_config": true,
+  "warnings": [],
+  "scan_completeness": {
+    "level": "full",
+    "reasons": []
+  }
+}
