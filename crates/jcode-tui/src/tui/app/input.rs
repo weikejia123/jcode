@@ -1,9 +1,9 @@
 #![cfg_attr(test, allow(clippy::items_after_test_module))]
 
 use super::{
-    App, ContentBlock, DisplayMessage, Message, ProcessingStatus, Role, SendAction, SkillRegistry,
-    commands, ctrl_bracket_fallback_to_esc, is_context_limit_error,
-    is_request_payload_too_large_error, remote,
+    App, ContentBlock, DisplayMessage, Message, ProcessingStatus, Role, SendAction, commands,
+    ctrl_bracket_fallback_to_esc, is_context_limit_error, is_request_payload_too_large_error,
+    remote,
 };
 use crate::bus::{
     Bus, BusEvent, ClipboardPasteCompleted, ClipboardPasteContent, ClipboardPasteKind,
@@ -602,6 +602,7 @@ where
     true
 }
 
+pub(in crate::tui::app) mod newline;
 mod paste_guard;
 #[cfg(test)]
 pub(in crate::tui::app) use paste_guard::expire_for_test as paste_guard_expire_for_test;
@@ -719,7 +720,7 @@ pub(super) fn promote_dropped_images(app: &mut App) -> bool {
     true
 }
 
-fn parse_dropped_paths(text: &str) -> Option<Vec<PathBuf>> {
+pub(super) fn parse_dropped_paths(text: &str) -> Option<Vec<PathBuf>> {
     let trimmed = text.trim();
     let literal_path = PathBuf::from(trimmed);
     if literal_path.is_file() {
@@ -851,7 +852,154 @@ impl App {
     }
 }
 
+/// Strip terminal escape-sequence remnants from text headed for the composer.
+///
+/// Mouse reporting, bracketed paste, and focus events all arrive as CSI
+/// sequences. When a read is torn mid-sequence (a fast wheel flick split across
+/// two reads, a loaded machine, a slow SSH link), the terminal-event parser can
+/// resynchronize partway through and hand the tail of the sequence back as
+/// ordinary text, which then lands in the draft as noise like `[<65;50;24M`
+/// (issue #540). Whether that happens depends on the terminal and on timing, so
+/// rather than rely on the parser never mis-syncing, drop the remnants at the
+/// single insertion boundary every input path shares.
+///
+/// Deliberately conservative: only ESC-introduced sequences and bare CSI-shaped
+/// runs are removed, plus C0 control characters other than tab and newline.
+///
+/// A *bare* run (one whose ESC introducer was consumed by the torn read) is only
+/// stripped when it looks unmistakably like a terminal report: `[`, at least one
+/// parameter byte, and a final byte that terminals actually emit for the
+/// sequences we enable (`M`/`m` mouse, `~` bracketed paste and special keys,
+/// `R` cursor position, `I`/`O` focus). This is what keeps ordinary typed text
+/// such as `array[0]`, `list[1]`, or `[TODO]` intact, since `]` and letters like
+/// `O` only qualify with a preceding numeric parameter for the specific finals
+/// listed. Anything else is left alone: a missed remnant is cosmetic, whereas
+/// eating a user's real characters is not.
+pub(super) fn strip_terminal_control_sequences(text: &str) -> std::borrow::Cow<'_, str> {
+    let looks_suspicious = text
+        .chars()
+        .any(|ch| ch == '\x1b' || ch == '\u{9b}' || (ch.is_control() && ch != '\t' && ch != '\n'));
+    let has_csi_run = text.contains("\x1b[") || text.contains('\u{9b}') || {
+        let bytes = text.as_bytes();
+        bytes.iter().enumerate().any(|(index, byte)| {
+            *byte == b'[' && bare_terminal_report_length(&bytes[index..]).is_some()
+        })
+    };
+    if !looks_suspicious && !has_csi_run {
+        return std::borrow::Cow::Borrowed(text);
+    }
+
+    let bytes = text.as_bytes();
+    let mut cleaned = String::with_capacity(text.len());
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        // ESC-introduced sequence: skip the introducer, then the body.
+        if byte == 0x1b {
+            index += 1;
+            if index < bytes.len() && bytes[index] == b'[' {
+                match csi_run_length(&bytes[index..]) {
+                    Some(len) => index += len,
+                    // Unterminated: the rest is a truncated sequence, drop it.
+                    None => index = bytes.len(),
+                }
+            } else if index < bytes.len() {
+                // Two-character escape such as ESC O or ESC ].
+                index += 1;
+            }
+            continue;
+        }
+        // 8-bit CSI introducer (UTF-8 encoded U+009B).
+        if byte == 0xc2 && bytes.get(index + 1) == Some(&0x9b) {
+            index += 2;
+            if bytes.get(index) == Some(&b'[') {
+                match csi_run_length(&bytes[index..]) {
+                    Some(len) => index += len,
+                    None => index = bytes.len(),
+                }
+            }
+            continue;
+        }
+        // A bare report-shaped run left behind by a torn read.
+        if byte == b'['
+            && let Some(len) = bare_terminal_report_length(&bytes[index..])
+        {
+            index += len;
+            continue;
+        }
+        // Drop stray C0 controls; keep tab and newline, which are meaningful.
+        if byte < 0x20 && byte != b'\t' && byte != b'\n' {
+            index += 1;
+            continue;
+        }
+        // Copy one whole UTF-8 character.
+        let char_len = text[index..]
+            .chars()
+            .next()
+            .map(char::len_utf8)
+            .unwrap_or(1);
+        cleaned.push_str(&text[index..index + char_len]);
+        index += char_len;
+    }
+
+    std::borrow::Cow::Owned(cleaned)
+}
+
+/// Length of a CSI run starting at `bytes[0]` (the `[`), including its final
+/// byte, or `None` when the run is unterminated.
+///
+/// A CSI body is parameter bytes `0x30..=0x3f`, then intermediate bytes
+/// `0x20..=0x2f`, then one final byte `0x40..=0x7e`.
+fn csi_run_length(bytes: &[u8]) -> Option<usize> {
+    debug_assert_eq!(bytes.first(), Some(&b'['));
+    let mut index = 1usize;
+    while index < bytes.len() && (0x30..=0x3f).contains(&bytes[index]) {
+        index += 1;
+    }
+    while index < bytes.len() && (0x20..=0x2f).contains(&bytes[index]) {
+        index += 1;
+    }
+    let final_byte = *bytes.get(index)?;
+    if (0x40..=0x7e).contains(&final_byte) {
+        Some(index + 1)
+    } else {
+        None
+    }
+}
+
+/// Length of a bare (ESC-less) run that is unmistakably a terminal report, or
+/// `None` when the run could plausibly be text the user typed.
+///
+/// Requires at least one parameter byte and one of the final bytes emitted by
+/// the reporting modes jcode enables, so `array[0]` and `[TODO]` are left alone
+/// while `[<65;50;24M` and `[200~` are recognized.
+fn bare_terminal_report_length(bytes: &[u8]) -> Option<usize> {
+    debug_assert_eq!(bytes.first(), Some(&b'['));
+    let len = csi_run_length(bytes)?;
+    let params = &bytes[1..len - 1];
+    if params.is_empty() {
+        return None;
+    }
+    // Mouse/paste/cursor/focus reports carry digits, `;`, and an optional
+    // leading `<`. Reject anything with other parameter bytes.
+    if !params
+        .iter()
+        .all(|byte| byte.is_ascii_digit() || *byte == b';' || *byte == b'<')
+    {
+        return None;
+    }
+    const REPORT_FINALS: [u8; 6] = *b"Mm~RIO";
+    REPORT_FINALS.contains(&bytes[len - 1]).then_some(len)
+}
+
 pub(super) fn insert_input_text(app: &mut App, text: &str) {
+    if text.is_empty() {
+        return;
+    }
+
+    // Drop terminal escape remnants before they can land in the draft (#540).
+    let sanitized = strip_terminal_control_sequences(text);
+    let text: &str = &sanitized;
     if text.is_empty() {
         return;
     }
@@ -942,13 +1090,8 @@ pub(super) fn handle_text_input(app: &mut App, text: &str) -> bool {
     true
 }
 
-fn visible_prompt_history(app: &App) -> Vec<String> {
-    app.display_messages
-        .iter()
-        .filter(|message| message.role == "user")
-        .map(|message| message.content.trim().to_string())
-        .filter(|content| !content.is_empty())
-        .collect()
+fn visible_prompt_history(app: &mut App) -> Vec<String> {
+    app.merged_prompt_history()
 }
 
 fn byte_offset_for_line_column(
@@ -1193,6 +1336,7 @@ pub(super) fn retrieve_pending_message_for_edit(app: &mut App) -> bool {
     if let Some(msg) = app.interleave_message.take()
         && !msg.is_empty()
     {
+        app.pending_images.append(&mut app.interleave_images);
         parts.push(msg);
         had_pending = true;
     }
@@ -1236,10 +1380,6 @@ pub(super) fn send_action(app: &App, alternate_shortcut: bool) -> SendAction {
     } else {
         SendAction::Interleave
     }
-}
-
-pub(super) fn handle_shift_enter(app: &mut App) {
-    insert_input_text(app, "\n");
 }
 
 impl App {
@@ -1291,7 +1431,7 @@ impl App {
             self.consecutive_guardrail_stops, cleared, had_overnight
         ));
         self.push_display_message(DisplayMessage::system(format!(
-            "🛑 Auto-poke stopped: the provider guardrail refused {} turns in a row. Re-poking the same request will keep getting refused. Rephrase or narrow the task, then run /poke again to resume.",
+            "🛑 The provider refused {} turns in a row, so we stopped poking. The same request will keep getting refused. Rephrase or narrow the task, then /poke to resume.",
             self.consecutive_guardrail_stops
         )));
         self.set_status_notice("Poke stopped: provider guardrail");
@@ -1307,6 +1447,45 @@ impl App {
         }
         self.schedule_auto_poke_followup_if_needed()
             || self.schedule_overnight_poke_followup_if_needed()
+    }
+
+    /// Deliver this turn's deferred quality-check reminder, if anything is
+    /// still unresolved. Returns true when a continuation was queued.
+    ///
+    /// Delivered at most once per turn: the reminder asks the model to verify
+    /// weak points, and re-asking after it has done so would loop. The
+    /// observation log is cleared either way, so the next turn starts clean.
+    fn deliver_deferred_gate_digest_if_needed(&mut self) -> bool {
+        if self.todo_gate_digest_delivered {
+            return false;
+        }
+        let session_id = self.session_id().to_string();
+        let observations = crate::todo::load_gate_observations(&session_id).unwrap_or_default();
+        if observations.is_empty() {
+            return false;
+        }
+        let plan = crate::todo::load_plan(&session_id).unwrap_or_default();
+        let goals = crate::todo::load_goals(&session_id).unwrap_or_default();
+        let digest = crate::todo::build_gate_digest(&observations, &plan, &goals);
+        let _ = crate::todo::clear_gate_observations(&session_id);
+        let Some(digest) = digest else {
+            crate::logging::info(&format!(
+                "TODO_GATE_DIGEST action=skip reason=nothing_to_report observations={}",
+                observations.len()
+            ));
+            return false;
+        };
+        self.todo_gate_digest_delivered = true;
+        crate::logging::info(&format!(
+            "TODO_GATE_DIGEST action=queue observations={}",
+            observations.len()
+        ));
+        self.push_display_message(DisplayMessage::system(
+            "🔎 We asked the agent to double-check this turn's weak points.",
+        ));
+        self.queued_messages.push(digest);
+        self.pending_queued_dispatch = true;
+        true
     }
 
     pub(super) fn schedule_auto_poke_followup_if_needed(&mut self) -> bool {
@@ -1326,8 +1505,19 @@ impl App {
             .collect();
         if incomplete.is_empty() {
             if todos.is_empty() {
+                crate::logging::info(
+                    "AUTO_POKE_DECISION action=disarm reason=no_todos incomplete=0",
+                );
                 self.auto_poke_incomplete_todos = false;
                 return false;
+            }
+            // Deferred quality checks land here, once, instead of interrupting
+            // every todo write during the turn. Every point recorded during the
+            // turn is raised, including ones whose score later climbed: work
+            // done while the score was low never benefited from the assessment
+            // that arrived after it.
+            if self.deliver_deferred_gate_digest_if_needed() {
+                return true;
             }
             let confidence_summary = super::commands::todo_confidence_summary(&todos);
             let confidence_label =
@@ -1343,18 +1533,19 @@ impl App {
                     self.todo_completion_gate_attempts.saturating_add(1);
                 let notice = if confidence_summary.completion_confidence_needs_validation {
                     crate::telemetry::record_todo_gate(crate::telemetry::TodoGateKind::Completion);
-                    "🛑 Todo completion gate: completion confidence needs stronger validation."
+                    "🛑 The agent marked its work done without strong enough validation. We asked it to double-check."
                 } else {
                     self.todo_confidence_spike_challenged = true;
                     crate::telemetry::record_todo_gate(
                         crate::telemetry::TodoGateKind::ConfidenceSpike,
                     );
-                    "🛑 Todo completion gate: abrupt confidence increase needs independent validation."
+                    "🛑 The agent's confidence jumped suddenly. We asked it to verify that independently."
                 };
                 self.push_display_message(DisplayMessage::system(notice));
-                self.hidden_queued_system_messages.push(
-                    super::commands::build_todo_confidence_summary_message(&todos),
-                );
+                // User-role content: reminder-only turns read as empty user
+                // messages and models answer instead of re-validating.
+                let summary = super::commands::build_todo_confidence_summary_message(&todos);
+                self.queued_messages.push(summary);
                 self.pending_queued_dispatch = true;
                 return true;
             }
@@ -1371,19 +1562,23 @@ impl App {
                     self.todo_completion_gate_attempts
                 ));
                 self.push_display_message(DisplayMessage::system(
-                    "⚠️ Todo completion gate: validation still failing after repeated nudges. Auto-poke stopped; review the remaining todos manually.",
+                    "⚠️ We nudged the agent several times but its validation still isn't holding up. We stopped poking; review the remaining todos yourself.",
                 ));
                 self.auto_poke_incomplete_todos = false;
                 self.todo_confidence_spike_challenged = false;
                 self.todo_completion_gate_attempts = 0;
+                self.todo_gate_digest_delivered = false;
                 self.pending_queued_dispatch = false;
                 return false;
             }
             self.auto_poke_incomplete_todos = false;
             self.todo_confidence_spike_challenged = false;
+            // A finished cycle re-arms the review for whatever work comes next;
+            // without this a session could only ever deliver one digest.
+            self.todo_gate_digest_delivered = false;
             self.todo_completion_gate_attempts = 0;
             self.push_display_message(DisplayMessage::system(format!(
-                "✅ Todos complete. Completion confidence: {}.",
+                "✅ All todos done. Completion confidence: {}.",
                 confidence_label
             )));
             self.pending_queued_dispatch = false;
@@ -1391,10 +1586,21 @@ impl App {
         }
 
         self.push_display_message(DisplayMessage::system(format!(
-            "👉 Auto-poking: {} incomplete todo{}. /poke off to stop.",
+            "👉 {} incomplete todo{}. We poked it for you. /poke off to stop.",
             incomplete.len(),
             if incomplete.len() == 1 { "" } else { "s" },
         )));
+        // Auto-poke previously had no log trail, so a continuation that was
+        // queued but never dispatched looked identical in the logs to a silent
+        // model. Emit a decision line on every arm so the queue -> send handoff
+        // can be correlated with "Sending queued continuation message".
+        crate::logging::info(&format!(
+            "AUTO_POKE_DECISION action=queue_continuation incomplete={} queued_before={} is_processing={} pending_turn={}",
+            incomplete.len(),
+            self.queued_messages.len(),
+            self.is_processing,
+            self.pending_turn,
+        ));
         // Open todos mean the model is still iterating; completion-gate
         // exhaustion should only trip when the gate itself stops moving.
         self.todo_completion_gate_attempts = 0;
@@ -1530,7 +1736,7 @@ pub(super) fn handle_alternate_enter(app: &mut App) {
         SendAction::Queue => queue_message(app),
         SendAction::Interleave => {
             let prepared = take_prepared_input(app);
-            stage_local_interleave(app, prepared.expanded);
+            stage_local_interleave(app, prepared.expanded, prepared.images);
         }
     }
 }
@@ -1930,10 +2136,10 @@ pub(super) fn handle_pre_control_shortcuts(
                 app.set_status_notice("Swarm view closed");
             }
             super::tui_state::SwarmPanelView::Controls => {
-                app.set_status_notice("Swarm: alt+n full page · alt+↑/↓ select · alt+o open · esc");
+                app.set_status_notice(crate::tui::keybind::swarm_view_hint("full page"));
             }
             super::tui_state::SwarmPanelView::FullPage => {
-                app.set_status_notice("Swarm page: alt+n chat · alt+↑/↓ select · alt+o open · esc");
+                app.set_status_notice(crate::tui::keybind::swarm_page_hint());
             }
         }
         return true;
@@ -2126,6 +2332,11 @@ pub(super) fn handle_modal_key(
     code: KeyCode,
     modifiers: KeyModifiers,
 ) -> Result<bool> {
+    if app.prompt_history_search.is_some() {
+        app.handle_prompt_history_search_key(code, modifiers);
+        return Ok(true);
+    }
+
     if app.changelog_scroll.is_some() {
         app.handle_changelog_key(code)?;
         return Ok(true);
@@ -2211,6 +2422,7 @@ pub(super) fn handle_global_control_shortcuts(
             if app.is_processing {
                 app.cancel_requested = true;
                 app.interleave_message = None;
+                app.interleave_images.clear();
                 app.pending_soft_interrupts.clear();
                 app.pending_soft_interrupt_requests.clear();
                 if app.cancel_overnight_for_interrupt() {
@@ -2224,14 +2436,20 @@ pub(super) fn handle_global_control_shortcuts(
             true
         }
         KeyCode::Char('r') => {
-            app.recover_session_without_tools();
+            app.open_prompt_history_search();
             true
         }
         KeyCode::Char('a') if app.input.is_empty() => {
             app.copy_chat_viewport_context_to_clipboard();
             true
         }
-        KeyCode::Char('l') => true,
+        // Ctrl+L: terminal-style view clear (context kept). Only reachable
+        // when no side pane claimed 'l' for focus (handle_diagram_ctrl_key
+        // runs first and wins while a diagram or diff pane is available).
+        KeyCode::Char('l') => {
+            app.clear_view_keep_context();
+            true
+        }
         _ => handle_control_key(app, code),
     }
 }
@@ -2250,7 +2468,7 @@ pub(super) fn handle_enter(app: &mut App) -> bool {
             SendAction::Queue => queue_message(app),
             SendAction::Interleave => {
                 let prepared = take_prepared_input(app);
-                stage_local_interleave(app, prepared.expanded);
+                stage_local_interleave(app, prepared.expanded, prepared.images);
             }
         }
     }
@@ -2340,6 +2558,7 @@ pub(super) fn handle_basic_key(app: &mut App, code: KeyCode) -> bool {
                         .any(|message| super::commands::is_poke_message(message));
                 app.cancel_requested = true;
                 app.interleave_message = None;
+                app.interleave_images.clear();
                 app.pending_soft_interrupts.clear();
                 app.pending_soft_interrupt_requests.clear();
                 let cancelled_overnight = app.cancel_overnight_for_interrupt();
@@ -2367,6 +2586,7 @@ pub(super) fn handle_basic_key(app: &mut App, code: KeyCode) -> bool {
 
 pub(super) fn take_prepared_input(app: &mut App) -> PreparedInput {
     let raw_input = std::mem::take(&mut app.input);
+    app.record_prompt_history(&raw_input);
     let expanded = expand_paste_placeholders(app, &raw_input);
     app.pasted_contents.clear();
     let images = std::mem::take(&mut app.pending_images);
@@ -2379,8 +2599,13 @@ pub(super) fn take_prepared_input(app: &mut App) -> PreparedInput {
     }
 }
 
-pub(super) fn stage_local_interleave(app: &mut App, content: String) {
+pub(super) fn stage_local_interleave(
+    app: &mut App,
+    content: String,
+    images: Vec<(String, String)>,
+) {
     app.interleave_message = Some(content);
+    app.interleave_images = images;
     app.set_status_notice("⏭ Sending now (interleave)");
 }
 
@@ -2578,9 +2803,9 @@ impl App {
             return Ok(());
         }
 
-        // Shift+Enter and Alt/Option+Enter insert a newline in the input box.
-        if code == KeyCode::Enter && modifiers.intersects(KeyModifiers::SHIFT | KeyModifiers::ALT) {
-            handle_shift_enter(self);
+        // Shift+Enter, Alt/Option+Enter, and the trailing-backslash fallback all
+        // insert a newline in the input box.
+        if newline::enter_inserts_newline(self, code, modifiers) {
             return Ok(());
         }
 
@@ -2838,9 +3063,10 @@ impl App {
     pub(super) async fn send_interleave_now(
         &mut self,
         content: String,
+        images: Vec<(String, String)>,
         remote: &mut crate::tui::backend::RemoteConnection,
     ) {
-        remote::send_interleave_now(self, content, remote).await;
+        remote::send_interleave_now(self, content, images, remote).await;
     }
 
     /// Retrieve all pending unsent messages into the input for editing.
@@ -3360,6 +3586,9 @@ impl App {
         }
 
         let raw_input = std::mem::take(&mut self.input);
+        // Persist to cross-session prompt history (no-op for slash/shell
+        // commands, secret-intercept inputs, and oversized pastes).
+        self.record_prompt_history(&raw_input);
         let mut input = self.expand_paste_placeholders(&raw_input);
         if let Some(notice) = input_exceeds_submit_limit(&input) {
             self.input = raw_input;
@@ -3395,25 +3624,7 @@ impl App {
         }
 
         let trimmed = input.trim();
-        let handled = commands::handle_cancel_command(self, trimmed)
-            || commands::handle_help_command(self, trimmed)
-            || commands::handle_keys_command(self, trimmed)
-            || commands::handle_ssh_command(self, trimmed)
-            || commands::handle_session_command(self, trimmed)
-            || commands::handle_dictation_command(self, trimmed)
-            || commands::handle_config_command(self, trimmed)
-            || commands::handle_log_command(self, trimmed)
-            || commands::handle_diff_command(self, trimmed)
-            || commands::handle_model_status_command(self, trimmed)
-            || super::debug::handle_debug_command(self, trimmed)
-            || super::model_context::handle_model_command(self, trimmed)
-            || super::commands::handle_usage_command(self, trimmed)
-            || super::productivity::handle_productivity_command(self, trimmed)
-            || super::commands::handle_feedback_command(self, trimmed)
-            || super::support::handle_support_command(self, trimmed)
-            || super::state_ui::handle_info_command(self, trimmed)
-            || super::auth::handle_auth_command(self, trimmed)
-            || super::tui_lifecycle_runtime::handle_dev_command(self, trimmed);
+        let handled = super::commands_dispatch::dispatch_local_command(self, trimmed);
         if handled {
             if trimmed.starts_with('/') {
                 crate::telemetry::record_command_family(trimmed);
@@ -3452,19 +3663,19 @@ impl App {
             return;
         }
 
-        // A terminal file drop is user input even when its absolute path starts
-        // with `/`. Check the filesystem-aware drop parser before slash routing
-        // so a real file can never collide with a skill name.
+        // File drops remain ordinary input. Registry-aware resolution supports
+        // multi-word skill names without weakening that guard.
+        let initial_snapshot = self.current_skills_snapshot();
         let skill_invocation = parse_dropped_paths(&input)
             .is_none()
-            .then(|| SkillRegistry::parse_invocation(&input))
+            .then(|| initial_snapshot.resolve_invocation(&input))
             .flatten();
 
         // Check for skill invocation.
         if let Some(invocation) = skill_invocation {
             let skill_name = invocation.name.to_string();
             let trailing_prompt = invocation.prompt.map(str::to_string);
-            let mut skill = self.current_skills_snapshot().get(&skill_name).cloned();
+            let mut skill = initial_snapshot.get(&skill_name).cloned();
 
             // Remote/minimal TUI clients may start with an empty skill snapshot, and
             // daemon-side `skill_manage reload_all` can update a different process.
@@ -3528,6 +3739,13 @@ impl App {
         // Remember the typed prompt so we can restore it to the input box if this
         // turn fails (e.g. "token refresh needed"), instead of dropping it.
         self.last_submitted_input = Some(raw_input.clone());
+
+        // See `stage_turn_for_remote_tick_loop`: a remote client must never
+        // park on the local-only `pending_turn` flag.
+        if super::remote::stage_turn_for_remote_tick_loop(self, &input) {
+            return;
+        }
+
         self.push_display_message(DisplayMessage {
             role: "user".to_string(),
             content: raw_input, // Show placeholder to user (condensed view)
@@ -3737,5 +3955,79 @@ impl App {
                 ));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod terminal_control_sequence_tests {
+    use super::strip_terminal_control_sequences;
+
+    /// Remnants of terminal reports must never reach the composer (#540).
+    #[test]
+    fn strips_escape_and_bare_report_remnants() {
+        for (input, expected) in [
+            // Full mouse report, and the bare tail left by a torn read.
+            ("\x1b[<65;50;24M", ""),
+            ("[<65;50;24M", ""),
+            ("hi[<65;50;24Mthere", "hithere"),
+            ("[<65;50;24m", ""),
+            // Bracketed paste markers and cursor/focus reports.
+            ("[200~", ""),
+            ("[201~", ""),
+            ("[12;40R", ""),
+            ("[1I", ""),
+            ("[1O", ""),
+            // 8-bit CSI introducer.
+            ("\u{9b}[<65;50;24M", ""),
+            // Stray C0 controls, but tabs and newlines survive.
+            ("a\x07b", "ab"),
+            ("a\tb\nc", "a\tb\nc"),
+            // Truncated escape with no final byte: drop the remnant.
+            ("\x1b[<65;5", ""),
+        ] {
+            assert_eq!(
+                strip_terminal_control_sequences(input),
+                expected,
+                "input {input:?} should sanitize to {expected:?}"
+            );
+        }
+    }
+
+    /// The guard must not eat text a user actually typed. Being too aggressive
+    /// here is worse than missing a remnant.
+    #[test]
+    fn preserves_ordinary_bracketed_text() {
+        for input in [
+            "array[0]",
+            "list[1] = list[2]",
+            "[TODO] fix this",
+            "see docs[1] and notes[2]",
+            "fn f(v: Vec<u8>) -> [u8; 4]",
+            "a[b]c",
+            "[]",
+            "[",
+            "]",
+            "[abc]",
+            "[1]",
+            "[12;40]",
+            "plain text with no brackets",
+            "emoji 🎉 and accents café",
+            "match x { [a, b] => a + b }",
+        ] {
+            assert_eq!(
+                strip_terminal_control_sequences(input),
+                input,
+                "input {input:?} must be preserved verbatim"
+            );
+        }
+    }
+
+    /// Non-suspicious text must not be reallocated.
+    #[test]
+    fn borrows_when_nothing_to_strip() {
+        assert!(matches!(
+            strip_terminal_control_sequences("array[0] = 1"),
+            std::borrow::Cow::Borrowed(_)
+        ));
     }
 }

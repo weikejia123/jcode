@@ -1720,7 +1720,7 @@ fn test_local_model_picker_render_shows_antigravity_models_exactly_as_user_sees_
         claude_text
     );
     assert!(
-        claude_text.contains("claude-sonnet-4-6"),
+        claude_text.contains("Claude Sonnet 4.6"),
         "rendered /model view should show the Antigravity Claude row, got:
 {}",
         claude_text
@@ -1793,7 +1793,7 @@ fn test_login_smoke_model_picker_renders_unstacked_provider_rows() {
         openai_text
     );
     assert!(
-        openai_text.contains("gpt-5.4")
+        openai_text.contains("GPT-5.4")
             && openai_text.contains("OpenAI")
             && openai_text.contains("oauth")
             && openai_text.contains("api key"),
@@ -1820,7 +1820,7 @@ fn test_login_smoke_model_picker_renders_unstacked_provider_rows() {
         comtegra_text
     );
     assert!(
-        copilot_text.contains("claude-opus-4.6") && copilot_text.contains("Copilot"),
+        copilot_text.contains("Claude Opus 4.6") && copilot_text.contains("Copilot"),
         "Copilot route should be visible, got:\n{}",
         copilot_text
     );
@@ -2154,7 +2154,7 @@ fn test_poke_arms_auto_poke_until_todos_are_done() {
         assert!(app.auto_poke_incomplete_todos);
         assert!(app.pending_turn);
         assert!(app.display_messages().iter().any(|msg| {
-            msg.content.contains("Poking model: 1 incomplete todo")
+            msg.content.contains("1 incomplete todo. We poked the agent")
                 && msg.content.contains("/poke off")
         }));
     });
@@ -2299,7 +2299,7 @@ fn test_poke_queues_when_turn_is_in_progress() {
         assert!(app.queued_messages().is_empty());
         assert!(app.display_messages().iter().any(|msg| {
             msg.content
-                .contains("/poke queued. Re-checking incomplete todos after this turn")
+                .contains("Poke queued. We'll re-check for unfinished todos after this turn")
         }));
 
         crate::todo::save_todos(
@@ -2436,35 +2436,38 @@ fn test_finish_turn_auto_poke_queues_confidence_summary_when_todos_done() {
 
         assert!(app.auto_poke_incomplete_todos);
         assert!(app.pending_queued_dispatch);
-        assert!(app.queued_messages().is_empty());
-        assert_eq!(app.hidden_queued_system_messages.len(), 1);
-        let summary = &app.hidden_queued_system_messages[0];
+        assert_eq!(app.queued_messages.len(), 1);
+        let summary = app.queued_messages[0].clone();
+        let summary = &summary;
         assert!(super::commands::is_poke_message(summary));
         assert!(super::commands::is_todo_confidence_summary_message(summary));
         assert_eq!(summary, crate::todo::TODO_COMPLETION_CONTINUATION_MESSAGE);
         assert!(!summary.chars().any(|ch| ch.is_ascii_digit()));
         assert!(summary.contains("completion confidence"));
-        assert!(!summary.to_ascii_lowercase().contains("gate"));
+        // The continuation self-identifies as an automated gate so the model
+        // does not mistake it for a user message, but never discloses the
+        // numeric threshold.
+        assert!(summary.contains("automated todo completion gate"));
         assert!(!summary.to_ascii_lowercase().contains("threshold"));
         assert!(!summary.contains("Finish risky provider path"));
         assert!(
             app.display_messages()
                 .iter()
                 .any(|msg| msg.content.contains(
-                    "Todo completion gate: completion confidence needs stronger validation."
+                    "marked its work done without strong enough validation"
                 ))
         );
 
         // Dispatching the follow-up does not disarm the gate. If the model
         // finishes another turn without improving completion confidence, the
         // same validation follow-up is queued again.
-        app.hidden_queued_system_messages.clear();
+        app.queued_messages.clear();
         app.pending_queued_dispatch = false;
         app.is_processing = true;
         super::local::finish_turn(&mut app);
         assert!(app.auto_poke_incomplete_todos);
         assert!(app.pending_queued_dispatch);
-        assert_eq!(app.hidden_queued_system_messages.len(), 1);
+        assert_eq!(app.queued_messages.len(), 1);
 
         // Once the model records sufficient completion confidence through the
         // todo tool, the next completion check passes and disarms auto-poke.
@@ -2477,16 +2480,17 @@ fn test_finish_turn_auto_poke_queues_confidence_summary_when_todos_done() {
             };
         }
         crate::todo::save_todos(&app.session.id, &validated).expect("save validated todos");
-        app.hidden_queued_system_messages.clear();
+        app.queued_messages.clear();
         app.pending_queued_dispatch = false;
         app.is_processing = true;
         super::local::finish_turn(&mut app);
         assert!(!app.auto_poke_incomplete_todos);
         assert!(!app.pending_queued_dispatch);
+        assert!(app.queued_messages.is_empty());
         assert!(app.hidden_queued_system_messages.is_empty());
         assert!(app.display_messages().iter().any(|msg| {
             msg.content
-                .contains("Todos complete. Completion confidence: 100%.")
+                .contains("All todos done. Completion confidence: 100%.")
         }));
     });
 }
@@ -2552,15 +2556,15 @@ fn test_finish_turn_challenges_confidence_spike_once() {
         assert!(app.todo_confidence_spike_challenged);
         assert!(app.pending_queued_dispatch);
         assert_eq!(
-            app.hidden_queued_system_messages,
+            app.queued_messages,
             vec![crate::todo::TODO_CONFIDENCE_SPIKE_CONTINUATION_MESSAGE]
         );
         assert!(app.display_messages().iter().any(|msg| {
             msg.content
-                .contains("abrupt confidence increase needs independent validation")
+                .contains("confidence jumped suddenly")
         }));
 
-        app.hidden_queued_system_messages.clear();
+        app.queued_messages.clear();
         app.pending_queued_dispatch = false;
         app.is_processing = true;
         super::local::finish_turn(&mut app);

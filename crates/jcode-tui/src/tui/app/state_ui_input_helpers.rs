@@ -62,17 +62,21 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
     RegisteredCommand::public("/btw", "Ask a side question in the side panel"),
     RegisteredCommand::public("/ssh", "Connect to a remote machine using system SSH"),
     RegisteredCommand::public("/git", "Show git status for the session working directory"),
+    RegisteredCommand::public("/colors", "List, configure, and score every TUI color"),
+    RegisteredCommand::hidden("/color", "Alias for /colors"),
     RegisteredCommand::public("/hotkeys", "List hotkeys with your personal usage"),
-    RegisteredCommand::hidden("/keys", "Alias for /hotkeys"),
+    RegisteredCommand::public("/terminal-setup", "Fix Shift+Enter newlines"),
     RegisteredCommand::public("/commit", "Make logical commits from current changes"),
     RegisteredCommand::public(
         "/commit-push",
         "Make logical commits from current changes, then push",
     ),
+    RegisteredCommand::hidden("/commit-and-push", "Alias for /commit-push"),
     RegisteredCommand::public(
         "/fast-release",
         "Publish Linux immediately from the warm selfdev cache; CI adds other platforms",
     ),
+    RegisteredCommand::public("/remote", "Reach this session from another machine"),
     RegisteredCommand::public(
         "/remote-release",
         "Push the release tag immediately; CI builds and publishes every platform",
@@ -89,7 +93,7 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
     RegisteredCommand::public("/autojudge", "Show/toggle automatic end-of-turn judging"),
     RegisteredCommand::public("/review", "Launch a one-shot headed review session"),
     RegisteredCommand::public("/judge", "Launch a one-shot headed judge session"),
-    RegisteredCommand::public("/effort", "Show/change reasoning effort (Alt+left/right)"),
+    RegisteredCommand::public("/effort", crate::tui::keybind::EFFORT_HELP),
     RegisteredCommand::public("/fast", "Toggle fast mode"),
     RegisteredCommand::public("/transport", "Show/change connection transport"),
     RegisteredCommand::public("/alignment", "Show/change default text alignment"),
@@ -106,11 +110,15 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
         "Show/toggle dimmed technical details on tool rows with an intent",
     ),
     RegisteredCommand::public(
-        "/reasoning",
-        "Show/change reasoning display (off/full/current)",
+        "/thinking-display",
+        "Show/hide the model's thinking text (off/full/current)",
     ),
+    RegisteredCommand::hidden("/thinking", "Alias for /thinking-display"),
+    RegisteredCommand::hidden("/reasoning", "Alias for /thinking-display"),
     RegisteredCommand::public("/cancel", "Cancel the current prompt or operation"),
     RegisteredCommand::public("/clear", "Clear conversation history"),
+    RegisteredCommand::public("/cls", "Clear the view only, keeping context (Ctrl+L)"),
+    RegisteredCommand::hidden("/clear-view", "Alias for /cls"),
     RegisteredCommand::public("/rewind", "Rewind conversation to previous message"),
     RegisteredCommand::public("/poke", "Poke model to resume with incomplete todos"),
     RegisteredCommand::public("/plan", "Create a plan-only response as a plan card"),
@@ -144,14 +152,17 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
     ),
     RegisteredCommand::public("/wrapped", "Alias for /productivity"),
     RegisteredCommand::public("/feedback", "Send feedback about jcode"),
+    RegisteredCommand::public("/telemetry", "Show or change what jcode sends"),
     RegisteredCommand::public("/support", "Email support with diagnostics prefilled"),
     RegisteredCommand::public("/subscription", "Show jcode subscription status"),
+    RegisteredCommand::public("/subscribe", "Why and how to subscribe to jcode"),
     RegisteredCommand::public("/config", "Show or edit configuration"),
     RegisteredCommand::public("/log", "Mark the current location in the jcode logs"),
     RegisteredCommand::public(
         "/keys",
         "Show keybinding conflicts with your terminal and OS (/keys refresh to rescan)",
     ),
+    RegisteredCommand::hidden("/keybindings", "Alias for /keys"),
     RegisteredCommand::public(
         "/diff",
         "Cycle or set diff display mode (off/inline/full/pinned/file)",
@@ -200,11 +211,23 @@ const REGISTERED_COMMANDS: &[RegisteredCommand] = &[
         "Continue every interrupted live session that would auto-resume",
     ),
     RegisteredCommand::remote("/resumeall", "Alias for /continue"),
+    RegisteredCommand::hidden("/resume-all", "Alias for /continue"),
     RegisteredCommand::hidden("/z", "Secret premium-mode command"),
     RegisteredCommand::hidden("/zz", "Secret premium-mode command"),
     RegisteredCommand::hidden("/zzz", "Secret premium-mode command"),
     RegisteredCommand::hidden("/zstatus", "Secret premium-mode status command"),
 ];
+
+/// Every non-hidden slash command with its one-line description, in
+/// registration order. The `/help` overlay uses this to list commands its
+/// hand-written sections have not covered, so a newly registered command can
+/// never be invisible to users.
+pub(crate) fn registered_command_entries() -> impl Iterator<Item = (&'static str, &'static str)> {
+    REGISTERED_COMMANDS
+        .iter()
+        .filter(|command| !command.hidden)
+        .map(|command| (command.name, command.help))
+}
 
 impl App {
     /// Find word boundary going backward (for Ctrl+W, Alt+B)
@@ -291,9 +314,8 @@ impl App {
         candidates: Vec<(String, &'static str)>,
     ) -> Vec<(String, &'static str)> {
         let needle = needle.to_lowercase();
-        // Bucket 1 = literal prefix matches (kept ahead of looser fuzzy hits so
-        // exact typing always wins). Bucket 0 = typo-tolerant fuzzy matches,
-        // ordered by descending fuzzy score.
+        // Bucket 1 = literal prefix matches (exact typing always wins).
+        // Bucket 0 = typo-tolerant fuzzy matches by descending score.
         let mut scored: Vec<(u8, i32, String, &'static str)> = Vec::new();
         for (cmd, help) in candidates {
             let lower = cmd.to_lowercase();
@@ -671,6 +693,32 @@ impl App {
                 .map(|(cmd, help)| (format!("{} {}", base, cmd.trim_start_matches('/')), help))
                 .collect();
             return self.rank_suggestions(input, topics);
+        }
+
+        if prefix.starts_with("/colors ") || prefix.starts_with("/color ") {
+            let base = if prefix.starts_with("/color ") {
+                "/color"
+            } else {
+                "/colors"
+            };
+            let mut suggestions: Vec<(String, &'static str)> = vec![
+                (
+                    format!("{base} harmony"),
+                    "Score the palette and list fixes",
+                ),
+                (
+                    format!("{base} generate #8ab4f8"),
+                    "Build a harmonious palette from one seed color",
+                ),
+                (format!("{base} reset"), "Reset every color to its default"),
+                (format!("{base} export"), "Print the palette as config TOML"),
+            ];
+            suggestions.extend(
+                jcode_tui_style::ALL_ROLES
+                    .iter()
+                    .map(|role| (format!("{base} {} #", role.key()), "Set this color role")),
+            );
+            return self.rank_suggestions(input, suggestions);
         }
 
         if prefix.starts_with("/git ") {
@@ -1116,14 +1164,66 @@ impl App {
 
     /// Get command suggestions based on current input
     pub fn command_suggestions(&self) -> Vec<(String, &'static str)> {
+        // Read up to eight times per frame; recomputing each time re-ranks
+        // every registered command and skill (and can touch disk for some
+        // prefixes). Memoize on the exact input plus the guard state the
+        // branches below consult, so any transition still recomputes.
+        let signature = self.command_suggestions_signature();
+        let epoch = self.command_suggestions_epoch.get();
+        if let Some(cache) = self.command_suggestions_cache.borrow().as_ref()
+            && cache.epoch == epoch
+            && cache.signature == signature
+            && cache.input == self.input
+        {
+            return cache.suggestions.clone();
+        }
+
+        let suggestions = self.command_suggestions_uncached(&signature);
+        *self.command_suggestions_cache.borrow_mut() = Some(CommandSuggestionsCache {
+            input: self.input.clone(),
+            signature,
+            epoch,
+            suggestions: suggestions.clone(),
+        });
+        suggestions
+    }
+
+    /// Advance the suggestion memo epoch, invalidating it. Called once per
+    /// rendered frame so the memo only ever collapses reads *within* a frame
+    /// and never serves data that predates a state change.
+    pub(crate) fn advance_command_suggestions_epoch(&self) {
+        self.command_suggestions_epoch
+            .set(self.command_suggestions_epoch.get().wrapping_add(1));
+    }
+
+    /// Snapshot the non-input state that `command_suggestions` branches on
+    /// before consulting the input buffer.
+    pub(super) fn command_suggestions_signature(&self) -> CommandSuggestionsSignature {
+        CommandSuggestionsSignature {
+            pending_login: self.pending_login.is_some(),
+            pending_account_input: self.pending_account_input.is_some(),
+            pending_ssh_remote_name: self.pending_ssh_remote_name.is_some(),
+            inline_preview_kind: self
+                .inline_interactive_state
+                .as_ref()
+                .filter(|picker| picker.preview)
+                .map(|picker| picker.kind),
+        }
+    }
+
+    /// Uncached body of [`Self::command_suggestions`].
+    pub(super) fn command_suggestions_uncached(
+        &self,
+        signature: &CommandSuggestionsSignature,
+    ) -> Vec<(String, &'static str)> {
         // While an interactive prompt is waiting for typed input (API key,
         // OAuth callback, account label, SSH target), the composer is an
         // answer box, not a command line. Rendering the full command palette
         // there is misleading (issue #496): the only command those prompts
         // advertise is /cancel, so suggest exactly that and nothing else.
-        if self.pending_login.is_some()
-            || self.pending_account_input.is_some()
-            || self.pending_ssh_remote_name.is_some()
+        if signature.pending_login
+            || signature.pending_account_input
+            || signature.pending_ssh_remote_name
         {
             let input = self.input.trim_start();
             let typed = input.trim_end();
@@ -1137,11 +1237,9 @@ impl App {
         // the picker itself is the suggestion surface. Rendering the textual
         // suggestion list underneath would duplicate it (and its rows are not
         // arrow-navigable anyway, since the preview claims Up/Down first).
-        if let Some(picker) = self.inline_interactive_state.as_ref()
-            && picker.preview
-        {
+        if let Some(kind) = signature.inline_preview_kind {
             let input = self.input.trim_start();
-            let suppress = match picker.kind {
+            let suppress = match kind {
                 crate::tui::PickerKind::Model => {
                     input.starts_with("/model") || input.starts_with("/models")
                 }
@@ -1259,7 +1357,7 @@ impl App {
     /// the active guided flow phase. Defaults to the starter suggestion cards.
     pub fn onboarding_welcome_kind(&self) -> crate::tui::OnboardingWelcomeKind {
         use crate::tui::OnboardingWelcomeKind;
-        use crate::tui::app::onboarding_flow::OnboardingPhase;
+        use crate::tui::app::onboarding_flow::{OnboardingPhase, SummaryPill, TelemetryLevel};
         match self.onboarding_phase() {
             Some(OnboardingPhase::Login { import }) => {
                 let prompt = import.as_ref().map(|review| {
@@ -1278,6 +1376,17 @@ impl App {
                         cursor: review.cursor,
                         continue_focused: review.continue_focused,
                         choosing: review.choosing,
+                        summary_pill: match review.summary_pill {
+                            SummaryPill::Continue => crate::tui::ImportSummaryPill::Continue,
+                            SummaryPill::ImportLess => crate::tui::ImportSummaryPill::ImportLess,
+                            SummaryPill::Telemetry => crate::tui::ImportSummaryPill::Telemetry,
+                        },
+                        telemetry: review.telemetry.map(|level| match level {
+                            TelemetryLevel::Everything => crate::tui::TelemetryChoice::Everything,
+                            TelemetryLevel::NoContent => crate::tui::TelemetryChoice::NoContent,
+                            TelemetryLevel::Nothing => crate::tui::TelemetryChoice::Nothing,
+                        }),
+                        telemetry_env_forced_off: crate::telemetry::opt_out_forced_by_env(),
                         checked_count: review.checked_count(),
                         seconds_left: review.seconds_remaining(),
                     }
@@ -1545,6 +1654,8 @@ impl App {
                 | "/compact-notifications"
                 | "/show-agentgrep-output"
                 | "/reasoning"
+                | "/thinking"
+                | "/thinking-display"
                 | "/config"
                 | "/save"
                 | "/rename"
@@ -1930,5 +2041,41 @@ mod external_cli_suggestion_tests {
         let candidates = latest_jsonl_suggestion_candidates(temp.path(), "Claude Code", 1);
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0].context.as_deref(), Some("new"));
+    }
+
+    /// Every slash command must be registered exactly once. Duplicate entries
+    /// mean two different handlers claim the same name, so which one runs
+    /// depends on dispatch order rather than on the registry the palette and
+    /// `/help` show the user.
+    #[test]
+    fn registered_commands_have_no_duplicate_names() {
+        let mut seen = std::collections::HashSet::new();
+        let duplicates: Vec<&str> = REGISTERED_COMMANDS
+            .iter()
+            .filter(|command| !seen.insert(command.name))
+            .map(|command| command.name)
+            .collect();
+        assert!(
+            duplicates.is_empty(),
+            "duplicate slash command registrations: {:?}",
+            duplicates
+        );
+    }
+
+    /// Aliases users can actually type must be discoverable through the
+    /// registry, otherwise autocomplete silently omits working commands.
+    #[test]
+    fn known_aliases_are_registered() {
+        let names: std::collections::HashSet<&str> =
+            REGISTERED_COMMANDS.iter().map(|c| c.name).collect();
+        for alias in [
+            "/keybindings",
+            "/commit-and-push",
+            "/resume-all",
+            "/hotkeys",
+            "/keys",
+        ] {
+            assert!(names.contains(alias), "{alias} is not registered");
+        }
     }
 }

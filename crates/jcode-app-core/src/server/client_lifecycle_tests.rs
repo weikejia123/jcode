@@ -41,6 +41,7 @@ async fn session_control_handle_does_not_wait_for_busy_agent_lock() {
     tokio::time::timeout(Duration::from_millis(100), async {
         assert!(control.queue_soft_interrupt(
             "please stop".to_string(),
+            Vec::new(),
             true,
             SoftInterruptSource::User,
         ));
@@ -885,7 +886,7 @@ async fn client_initiated_turn_fans_out_stream_and_terminal_events_to_live_attac
                 event,
                 ServerEvent::TextDelta { ref text } if text == "after attach"
             );
-            if matches!(event, ServerEvent::MessageEnd) {
+            if matches!(event, ServerEvent::MessageEnd { .. }) {
                 assert!(!saw_done, "MessageEnd must precede the terminal Done event");
                 saw_message_end = true;
             }

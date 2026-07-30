@@ -53,9 +53,12 @@ mod auth;
 mod auth_account_picker_saved_accounts;
 mod catchup;
 mod commands;
+mod commands_colors;
+mod commands_dispatch;
 mod commands_improve;
 mod commands_overnight;
 mod commands_plan;
+mod commands_remote;
 mod commands_review;
 mod conversation_state;
 mod copy_selection;
@@ -65,6 +68,7 @@ mod event_wrappers;
 mod handterm_native_scroll;
 pub(crate) mod helpers;
 mod hotkey_feedback;
+pub(crate) mod idle_animation_repaint;
 mod idle_heap_release;
 mod inline_interactive;
 mod input;
@@ -79,6 +83,7 @@ mod onboarding_flow_control;
 mod onboarding_repair;
 mod onboarding_sim;
 mod productivity;
+mod prompt_history;
 mod remote;
 mod remote_notifications;
 mod replay;
@@ -86,16 +91,18 @@ pub(crate) mod run_shell;
 mod runtime_memory;
 mod shortcut_hints;
 mod split_view;
-mod sponsor_disclosure;
 mod state_ui;
 mod state_ui_input_helpers;
+pub(crate) use state_ui_input_helpers::registered_command_entries;
 mod state_ui_maintenance;
 mod state_ui_messages;
 mod state_ui_runtime;
 mod state_ui_storage;
+mod subscribe_nudge;
 mod support;
 mod swarm_hint;
 mod terminal_liveness;
+mod terminal_setup_command;
 mod todos_view;
 mod tui_lifecycle;
 mod tui_lifecycle_runtime;
@@ -651,6 +658,43 @@ struct CommandCandidatesCache {
     candidates: Vec<(String, &'static str)>,
 }
 
+/// Memoized result of [`App::command_suggestions`] for one exact input buffer.
+///
+/// The suggestion list is read up to eight times per rendered frame (input
+/// box, hint line, shell-mode routing, key handling, debug capture). Each
+/// uncached call re-ranks ~120 registered commands plus skills, allocating a
+/// lowercased `String` per candidate, and some prefixes (`/goals show `) hit
+/// the disk. Caching on the exact input plus the small amount of state that
+/// can change the answer collapses that to one computation per distinct
+/// input.
+#[derive(Clone, Debug)]
+struct CommandSuggestionsCache {
+    /// Exact (untrimmed) input buffer the suggestions were computed from.
+    input: String,
+    /// Guard state that changes the answer independently of `input`, so a
+    /// stale entry can never outlive a prompt/picker transition.
+    signature: CommandSuggestionsSignature,
+    /// Frame epoch the entry was built in. The suggestion list also depends on
+    /// mutable session data (rewind target count, model catalogs, skills,
+    /// goals on disk) that is impractical to enumerate in a signature, so the
+    /// memo is deliberately scoped to a single frame: it collapses the ~8
+    /// reads per frame into one computation and never survives into the next.
+    epoch: u64,
+    suggestions: Vec<(String, &'static str)>,
+}
+
+/// Non-input state that [`App::command_suggestions`] branches on before it
+/// ever consults the input buffer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CommandSuggestionsSignature {
+    pending_login: bool,
+    pending_account_input: bool,
+    pending_ssh_remote_name: bool,
+    /// `Some(kind)` while an inline picker preview is open, which suppresses
+    /// the textual suggestion list for the matching command.
+    inline_preview_kind: Option<crate::tui::PickerKind>,
+}
+
 /// Session-wide token and cache accounting accumulated across all turns.
 ///
 /// Grouped out of [`App`] to keep the cohesive token/cache totals together. The
@@ -800,6 +844,12 @@ pub struct App {
     pending_history_anchor: Option<HistoryScrollAnchor>,
     input: String,
     command_candidates_cache: RefCell<Option<CommandCandidatesCache>>,
+    /// Per-input memo for `command_suggestions()`; see
+    /// [`CommandSuggestionsCache`].
+    command_suggestions_cache: RefCell<Option<CommandSuggestionsCache>>,
+    /// Monotonic frame counter bounding the lifetime of
+    /// `command_suggestions_cache` to a single frame.
+    command_suggestions_epoch: std::cell::Cell<u64>,
     cursor_pos: usize,
     scroll_offset: usize,
     /// Pauses auto-scroll when user scrolls up during streaming
@@ -837,6 +887,14 @@ pub struct App {
     context_revision: u64,
     // Track last streaming activity for "stale" detection
     last_stream_activity: Option<Instant>,
+    // When the user last pressed a key, mouse-scrolled, or pasted.
+    //
+    // Distinct from `last_stream_activity`, which tracks *provider* output: a
+    // user typing into an idle session produces no stream events at all, so that
+    // field cannot tell "actively composing" from "sitting untouched". The redraw
+    // scheduler needs the difference so it can keep the decorative animation out
+    // of the way of keystrokes.
+    last_user_interaction: Option<Instant>,
     // Provider has emitted MessageEnd, but the turn is still finalizing bookkeeping.
     stream_message_ended: bool,
     // A remote Done received while paced text is still buffered. The redraw
@@ -845,6 +903,10 @@ pub struct App {
     deferred_stream_done_id: Option<u64>,
     // Server-reported processing snapshot captured from resume/history before live events arrive.
     remote_resume_activity: Option<RemoteResumeActivity>,
+    // First tick at which a queued follow-up was observed sitting undispatched
+    // while the client was idle. Drives the starvation watchdog that recovers a
+    // stranded auto-poke continuation instead of spinning forever.
+    queued_followup_starved_since: Option<Instant>,
     // Reload reconnect is waiting for server history before deciding whether to continue.
     pending_reload_reconnect_status: Option<PendingReloadReconnectStatus>,
     // Current status
@@ -873,6 +935,10 @@ pub struct App {
     /// final confidence increase. Low or missing completion confidence keeps
     /// retrying, but a spike gets one dedicated independent-validation turn.
     todo_confidence_spike_challenged: bool,
+    /// Whether this turn's deferred quality-check digest has already been
+    /// delivered. The digest asks the model to verify weak points, so re-asking
+    /// after it has done so would loop; one delivery per turn is the contract.
+    todo_gate_digest_delivered: bool,
     /// How many completion-confidence gate nudges the current auto-poke cycle
     /// has sent. Without a budget, a model that stops updating its todos gets
     /// nudged on every turn forever, silently burning an API call per tick.
@@ -1027,12 +1093,22 @@ pub struct App {
     /// to target the agent repair brief (`jcode auth-test --provider X`). `None`
     /// when unknown.
     onboarding_import_failed_provider: Option<String>,
+    /// Whether the user explicitly committed a choice on the onboarding
+    /// "Telemetry settings" page. When true, the post-login default write is
+    /// skipped so it cannot clobber an explicit "send everything" opt-in.
+    onboarding_telemetry_choice_made: bool,
     /// Pending first-run model-validation request for the new-session screen.
     /// In remote/client mode the live default model is reported by the server
     /// asynchronously, so we record that a validation is wanted and let the
     /// onboarding tick fire it once a concrete model id (not "unknown") is
     /// known. `None` means no validation is pending.
     onboarding_pending_model_validation: Option<onboarding_flow::OnboardingPendingValidation>,
+    /// Prefetched result of the onboarding recent-project lookup. `None` means no
+    /// prefetch was started; `Some(slot)` holds `None` while the background scan
+    /// runs and `Some(result)` once it finished. Keeps the first-run "find bugs"
+    /// action from blocking on a cold session-list disk scan.
+    onboarding_recent_project_prefetch:
+        Option<std::sync::Arc<std::sync::Mutex<Option<Option<std::path::PathBuf>>>>>,
     // Inline UI state for copy badges ([Alt] [⇧] [S])
     copy_badge_ui: CopyBadgeUiState,
     // Modal in-app selection/copy state for the chat viewport.
@@ -1241,6 +1317,19 @@ pub struct App {
     /// Hash of the todo payload rendered into the inline chat todo card, used
     /// to keep the card live-updating while it stays in the transcript.
     todo_card_rendered_hash: u64,
+    /// JSON payload for the pinned todo band (display.pin_todos). `None` when
+    /// the feature is off or the session has no todos. Refreshed on tick.
+    /// The renderer wiring for these three fields is landing separately, so
+    /// they are allowed to be unread until it does.
+    #[allow(dead_code)]
+    pinned_todos_payload: Option<String>,
+    /// Hash of the todo payload behind `pinned_todos_payload`, used to skip
+    /// re-serializing when nothing changed between ticks.
+    #[allow(dead_code)]
+    pinned_todos_rendered_hash: u64,
+    /// Last time the pinned todo band re-read todos from disk (1s throttle).
+    #[allow(dead_code)]
+    pinned_todos_checked_at: Option<Instant>,
     last_side_panel_refresh: Option<Instant>,
     // Most recently persisted focus target for dictation routing.
     last_client_focus_recorded_at: Option<Instant>,
@@ -1334,6 +1423,10 @@ pub struct App {
     open_resume_key: OptionalBinding,
     // Optional configured keybinding for accepting the post-error fallback offer
     fallback_switch_key: OptionalBinding,
+    // Config reload generation the keybinding snapshot above was parsed at.
+    // Polled on idle ticks so config.toml keybinding edits hot-reload
+    // without a restart.
+    keybindings_config_generation: u64,
     // Active external dictation session, if one is running
     dictation_session: Option<dictation::ActiveDictation>,
     // Whether an external dictation command is currently running
@@ -1358,14 +1451,12 @@ pub struct App {
     learn_hint: Option<(String, Instant)>,
     // Whether a learned-keybinding nudge has already been surfaced this session.
     learn_hint_shown_this_session: bool,
+    terminal_setup_hint_shown_this_session: bool,
     // Whether the swarm-config-is-a-prompt hint has been surfaced this session.
     swarm_hint_shown_this_session: bool,
-    // Whether the inline sponsored-discovery policy detail has been attached
-    // this session. It appears once, on the first discover_tools result.
-    sponsor_disclosure_shown_this_session: bool,
-    // Inline hotkey feedback: "you just pressed X → does Y" for rarely-used
-    // known chords, or "X isn't bound · nearest: ..." for unknown chords.
-    // Rendered in the same pop-out slot as learn_hint.
+    subscribe_nudge: subscribe_nudge::SubscribeNudgeState,
+    // Inline hotkey feedback: "pressed X → does Y" for rare known chords or
+    // "X isn't bound · nearest: ..." for unknown; same slot as learn_hint.
     hotkey_feedback: Option<(String, Instant)>,
     // Lazily-loaded persisted per-action hotkey usage counters.
     hotkey_usage: Option<hotkey_feedback::HotkeyUsageState>,
@@ -1384,6 +1475,8 @@ pub struct App {
     active_experimental_feature_notice: Option<String>,
     // Message to interleave during processing (set via Ctrl+Enter in queue mode)
     interleave_message: Option<String>,
+    // Image attachments associated with the staged interleave message.
+    interleave_images: Vec<(String, String)>,
     // Message sent as soft interrupt but not yet injected (shown in queue preview until injected)
     pending_soft_interrupts: Vec<String>,
     // Soft interrupts written to the socket but not yet acknowledged by the server.
@@ -1527,6 +1620,11 @@ pub struct App {
     /// Per-client Niri-style workspace navigation state. Previously a process
     /// global; now owned per App instance.
     workspace_client: super::workspace_client::WorkspaceClientState,
+    /// Reverse prompt-history search overlay state (Ctrl+R). None = closed.
+    prompt_history_search: Option<prompt_history::PromptHistorySearchState>,
+    /// Lazily-loaded persisted cross-session prompt history (oldest first,
+    /// deduped). None until first use; see `prompt_history.rs`.
+    persisted_prompt_history: Option<Vec<String>>,
 }
 
 /// Inert provider used by runtime modes whose output is supplied by another source.

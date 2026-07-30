@@ -1,10 +1,12 @@
 use super::{Tool, ToolContext, ToolOutput};
 use crate::bus::{Bus, BusEvent, TodoEvent};
 use crate::todo::{
-    LOW_ALIGNMENT_SCORE, LOW_HILL_CLIMBABILITY, TODO_ALIGNMENT_CONTINUATION_MESSAGE,
-    TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE, TODO_OWNERSHIP_CONTINUATION_MESSAGE, TodoGoal,
-    TodoGoalChange, TodoGoalField, TodoItem, load_goals, load_todos,
-    newly_completed_groups_have_sufficient_ownership, save_goals, save_todos,
+    GateObservation, GateObservationKind, LOW_CLOSED_FEEDBACK_LOOP, LOW_INTENT_UNDERSTANDING,
+    SEVERE_INTENT_MISUNDERSTANDING, TODO_INTENT_UNDERSTANDING_CONTINUATION_MESSAGE,
+    TODO_OWNERSHIP_CONTINUATION_MESSAGE, TodoGoal, TodoGoalChange, TodoGoalField, TodoItem,
+    TodoPlan, TodoPlanChange, TodoPlanField, append_gate_observations, load_goals, load_plan,
+    load_todos, newly_completed_groups_have_sufficient_ownership, save_goals, save_plan,
+    save_todos,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -68,6 +70,7 @@ fn merge_confidence_history(previous: &[TodoItem], incoming: &mut [TodoItem]) {
 struct TodoInput {
     todos: Option<Vec<TodoItem>>,
     goals: Option<Vec<TodoGoal>>,
+    plan: Option<TodoPlan>,
 }
 
 /// Normalize a goal's group label: trimmed, with empty/whitespace collapsed
@@ -79,11 +82,25 @@ fn goal_group_key(group: Option<&str>) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Append `value` to `history` when it is a new observation.
+///
+/// One todo-tool write contributes at most one entry per score, so a single
+/// bulk update cannot manufacture an apparent gradual climb.
+fn record_score_observation(history: &mut Vec<u8>, value: Option<u8>) {
+    if let Some(value) = value
+        && history.last() != Some(&value)
+    {
+        history.push(value);
+    }
+}
+
 /// Merge incoming goal assessments with the stored ones.
 ///
 /// Incoming goals win per group key; stored goals for groups the write does
 /// not mention are retained (a todo update should not silently discard goal
-/// assessments).
+/// assessments). Score histories are tool-maintained: whatever the model sends
+/// for them is discarded in favor of the stored trail plus this write's
+/// observation.
 fn merge_goals(stored: &[TodoGoal], incoming: Option<Vec<TodoGoal>>) -> Vec<TodoGoal> {
     let Some(incoming) = incoming else {
         return stored.to_vec();
@@ -91,22 +108,38 @@ fn merge_goals(stored: &[TodoGoal], incoming: Option<Vec<TodoGoal>>) -> Vec<Todo
     let mut merged: Vec<TodoGoal> = Vec::new();
     for mut goal in incoming {
         goal.group = goal_group_key(goal.group.as_deref());
-        // User intention describes why the user asked for the goal and should
-        // remain stable while the agent revises metrics, feedback, or scores.
-        // An omitted intention therefore inherits the current value for the
-        // same goal. Sending an empty string remains an explicit way to clear
-        // its visible value.
-        if goal.user_intention.is_none() {
-            goal.user_intention = merged
-                .iter()
-                .find(|existing| existing.group == goal.group)
-                .or_else(|| {
-                    stored
-                        .iter()
-                        .find(|existing| goal_group_key(existing.group.as_deref()) == goal.group)
-                })
-                .and_then(|existing| existing.user_intention.clone());
+        let previous = stored
+            .iter()
+            .find(|prev| goal_group_key(prev.group.as_deref()) == goal.group);
+        goal.closed_feedback_loop_history = previous
+            .map(|prev| prev.closed_feedback_loop_history.clone())
+            .unwrap_or_default();
+        goal.end_to_end_ownership_history = previous
+            .map(|prev| prev.end_to_end_ownership_history.clone())
+            .unwrap_or_default();
+        // Field-level merge, matching `merge_plan`: a write that revises one
+        // assessment must not silently erase the others. Without this the
+        // turn-end digest would read a stale `None` and re-raise a point the
+        // agent had already resolved.
+        if let Some(prev) = previous {
+            if goal.closed_feedback_loop.is_none() {
+                goal.closed_feedback_loop = prev.closed_feedback_loop;
+            }
+            if goal.end_to_end_ownership.is_none() {
+                goal.end_to_end_ownership = prev.end_to_end_ownership;
+            }
+            if goal.feedback_loop.is_none() {
+                goal.feedback_loop = prev.feedback_loop.clone();
+            }
         }
+        record_score_observation(
+            &mut goal.closed_feedback_loop_history,
+            goal.closed_feedback_loop,
+        );
+        record_score_observation(
+            &mut goal.end_to_end_ownership_history,
+            goal.end_to_end_ownership,
+        );
         if let Some(slot) = merged
             .iter_mut()
             .find(|existing| existing.group == goal.group)
@@ -127,23 +160,10 @@ fn merge_goals(stored: &[TodoGoal], incoming: Option<Vec<TodoGoal>>) -> Vec<Todo
 
 fn changed_goal_fields(before: Option<&TodoGoal>, after: Option<&TodoGoal>) -> Vec<TodoGoalField> {
     let mut fields = Vec::new();
-    if before.and_then(|goal| goal.user_intention.as_ref())
-        != after.and_then(|goal| goal.user_intention.as_ref())
+    if before.and_then(|goal| goal.closed_feedback_loop)
+        != after.and_then(|goal| goal.closed_feedback_loop)
     {
-        fields.push(TodoGoalField::UserIntention);
-    }
-    if before.and_then(|goal| goal.alignment_score) != after.and_then(|goal| goal.alignment_score) {
-        fields.push(TodoGoalField::AlignmentScore);
-    }
-    if before.and_then(|goal| goal.hill_climbability)
-        != after.and_then(|goal| goal.hill_climbability)
-    {
-        fields.push(TodoGoalField::HillClimbability);
-    }
-    if before.and_then(|goal| goal.objective.as_ref())
-        != after.and_then(|goal| goal.objective.as_ref())
-    {
-        fields.push(TodoGoalField::Objective);
+        fields.push(TodoGoalField::ClosedFeedbackLoop);
     }
     if before.and_then(|goal| goal.feedback_loop.as_ref())
         != after.and_then(|goal| goal.feedback_loop.as_ref())
@@ -156,6 +176,45 @@ fn changed_goal_fields(before: Option<&TodoGoal>, after: Option<&TodoGoal>) -> V
         fields.push(TodoGoalField::EndToEndOwnership);
     }
     fields
+}
+
+/// Merge the incoming plan-level intent assessment with the stored one.
+///
+/// User intention describes why the user asked for the work and should remain
+/// stable while the agent revises its steps or scores, so an omitted intention
+/// inherits the stored value. Sending an empty string clears it. The intent
+/// score's history is tool-maintained, so a model-supplied trail is discarded.
+fn merge_plan(stored: &TodoPlan, incoming: Option<TodoPlan>) -> TodoPlan {
+    let Some(mut plan) = incoming else {
+        return stored.clone();
+    };
+    if plan.user_intention.is_none() {
+        plan.user_intention = stored.user_intention.clone();
+    }
+    if plan.understands_user_intent.is_none() {
+        plan.understands_user_intent = stored.understands_user_intent;
+    }
+    plan.understands_user_intent_history = stored.understands_user_intent_history.clone();
+    record_score_observation(
+        &mut plan.understands_user_intent_history,
+        plan.understands_user_intent,
+    );
+    plan
+}
+
+fn plan_change(before: &TodoPlan, after: &TodoPlan) -> Option<TodoPlanChange> {
+    let mut fields = Vec::new();
+    if before.user_intention != after.user_intention {
+        fields.push(TodoPlanField::UserIntention);
+    }
+    if before.understands_user_intent != after.understands_user_intent {
+        fields.push(TodoPlanField::UnderstandsUserIntent);
+    }
+    (!fields.is_empty()).then(|| TodoPlanChange {
+        before: Some(before.clone()),
+        after: Some(after.clone()),
+        fields,
+    })
 }
 
 fn goal_changes(before: &[TodoGoal], after: &[TodoGoal]) -> Vec<TodoGoalChange> {
@@ -194,43 +253,88 @@ fn goal_changes(before: &[TodoGoal], after: &[TodoGoal]) -> Vec<TodoGoalChange> 
     changes
 }
 
-/// Reframe nudges for goals whose representation coverage or hill-climbability
-/// is too low to support a trustworthy feedback loop.
+/// Record the points this write would previously have interrupted on, and
+/// return the rare continuation that is still worth sending immediately.
 ///
-/// A low score means there is no credible metric to iterate against, so the
-/// objective must be reframed into something measurable. The nudge is
-/// intentionally returned on every applicable todo write until the goal reaches
-/// the threshold or its work closes.
-fn take_reframe_nudges(goals: &[TodoGoal], todos: &[TodoItem]) -> Vec<String> {
-    let mut nudges = Vec::new();
+/// Previously both checks emitted a continuation on every applicable write for
+/// as long as the score stayed low. That punished the common healthy case:
+/// understanding of a request starts low and rises as the agent explores, so an
+/// agent already resolving the ambiguity was repeatedly told to stop and go
+/// resolve the ambiguity. On long iterative turns the same text reattached to
+/// every todo call, spending reasoning on re-justifying the plan instead of on
+/// the work.
+///
+/// So the checks are deferred: observations accumulate and are replayed once at
+/// turn end by `build_gate_digest`. Deferred, not forgiven. A score that climbs
+/// late is still raised, because the work done while it was low was never
+/// governed by the better loop that arrived afterwards. The one exception is a
+/// first plan write that scores severely low, where the agent is admitting it
+/// does not know the task at all and a whole turn of wrong work cannot be undone
+/// at turn end.
+fn record_reframe_observations(
+    plan: &TodoPlan,
+    goals: &[TodoGoal],
+    todos: &[TodoItem],
+    previous: &[TodoItem],
+) -> (Vec<GateObservation>, Vec<String>) {
+    let mut observations = Vec::new();
+    let mut immediate = Vec::new();
+    let any_open = todos
+        .iter()
+        .any(|todo| todo.status != "completed" && todo.status != "cancelled");
+    if any_open
+        && plan
+            .understands_user_intent
+            .is_none_or(|score| score < LOW_INTENT_UNDERSTANDING)
+    {
+        observations.push(GateObservation {
+            kind: GateObservationKind::IntentUnderstanding,
+            group: None,
+            score: plan.understands_user_intent,
+        });
+        // Only on the first observation of the plan, so a persistently low
+        // score is reported once at turn end rather than on every write.
+        let first_assessment = plan.understands_user_intent_history.len() <= 1;
+        if first_assessment
+            && plan
+                .understands_user_intent
+                .is_some_and(|score| score < SEVERE_INTENT_MISUNDERSTANDING)
+        {
+            immediate.push(TODO_INTENT_UNDERSTANDING_CONTINUATION_MESSAGE.to_string());
+        }
+    }
+    let closed_now = crate::todo::groups_closed_by_update(previous, todos);
     for goal in goals {
         let group_open = todos.iter().any(|todo| {
             goal_group_key(todo.group.as_deref()) == goal.group
                 && todo.status != "completed"
                 && todo.status != "cancelled"
         });
-        if !group_open {
+        // A group this write closes counts too: a goal created and finished in
+        // one step is otherwise never observed, and one-step completions are
+        // where a weak feedback loop hides best.
+        if !group_open && !closed_now.contains(&goal.group) {
             continue;
         }
         if goal
-            .alignment_score
-            .is_none_or(|score| score < LOW_ALIGNMENT_SCORE)
+            .closed_feedback_loop
+            .is_none_or(|score| score < LOW_CLOSED_FEEDBACK_LOOP)
         {
-            nudges.push(TODO_ALIGNMENT_CONTINUATION_MESSAGE.to_string());
-        }
-        if goal
-            .hill_climbability
-            .is_none_or(|score| score < LOW_HILL_CLIMBABILITY)
-        {
-            nudges.push(TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE.to_string());
+            observations.push(GateObservation {
+                kind: GateObservationKind::ClosedFeedbackLoop,
+                group: goal.group.clone(),
+                score: goal.closed_feedback_loop,
+            });
         }
     }
-    nudges
+    (observations, immediate)
 }
 
 fn build_todo_output(
     todos: Vec<TodoItem>,
+    plan: TodoPlan,
     goals: Vec<TodoGoal>,
+    plan_change: Option<TodoPlanChange>,
     goal_changes: Option<Vec<TodoGoalChange>>,
     continuations: impl IntoIterator<Item = String>,
 ) -> Result<ToolOutput> {
@@ -239,9 +343,17 @@ fn build_todo_output(
         .filter(|todo| todo.status != "completed")
         .count();
     let mut text = serde_json::to_string_pretty(&todos)?;
+    if plan != TodoPlan::default() {
+        text.push_str("\n\nPlan:\n");
+        text.push_str(&serde_json::to_string_pretty(&plan)?);
+    }
     if !goals.is_empty() {
         text.push_str("\n\nGoals:\n");
         text.push_str(&serde_json::to_string_pretty(&goals)?);
+    }
+    if let Some(plan_change) = plan_change.as_ref() {
+        text.push_str("\n\nPlan updates:\n");
+        text.push_str(&serde_json::to_string_pretty(plan_change)?);
     }
     if let Some(goal_changes) = goal_changes.as_ref().filter(|changes| !changes.is_empty()) {
         text.push_str("\n\nGoal updates:\n");
@@ -251,7 +363,10 @@ fn build_todo_output(
         text.push_str("\n\n");
         text.push_str(&continuation);
     }
-    let mut metadata = json!({"todos": todos, "goals": goals});
+    let mut metadata = json!({"todos": todos, "plan": plan, "goals": goals});
+    if let Some(plan_change) = plan_change {
+        metadata["plan_update"] = serde_json::to_value(plan_change)?;
+    }
     if let Some(goal_changes) = goal_changes.filter(|changes| !changes.is_empty()) {
         metadata["goal_updates"] = serde_json::to_value(goal_changes)?;
     }
@@ -272,6 +387,29 @@ fn normalize_todo_input(mut input: Value) -> Value {
     let Some(obj) = input.as_object_mut() else {
         return input;
     };
+    if let Some(plan) = obj.get_mut("plan") {
+        if let Value::String(raw) = plan {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                *plan = Value::Null;
+            } else if let Ok(parsed @ (Value::Object(_) | Value::Null)) =
+                serde_json::from_str::<Value>(trimmed)
+            {
+                *plan = parsed;
+            }
+        }
+        if let Some(fields) = plan.as_object_mut() {
+            for key in [
+                "alignment_score",
+                "user_intention_alignment",
+                "understands_user_intent",
+            ] {
+                if let Some(value) = fields.get_mut(key) {
+                    coerce_value_to_integer(value);
+                }
+            }
+        }
+    }
     for key in ["todos", "goals"] {
         let Some(entries) = obj.get_mut(key) else {
             continue;
@@ -305,6 +443,9 @@ fn normalize_todo_input(mut input: Value) -> Value {
                     "completion_confidence",
                     "alignment_score",
                     "user_intention_alignment",
+                    "closed_feedback_loop",
+                    // Pre-rename alias; some prompts and replayed transcripts
+                    // still carry the old key.
                     "hill_climbability",
                     "end_to_end_ownership",
                 ] {
@@ -405,40 +546,43 @@ impl Tool for TodoTool {
                         }
                     }
                 },
+                "plan": {
+                    "type": "object",
+                    "description": "Plan-level understanding of the user's request, covering the whole todo list. Send it on the first write and whenever your understanding changes.",
+                    "required": ["user_intention", "understands_user_intent"],
+                    "properties": {
+                        "user_intention": {
+                            "type": "string",
+                            "description": "Concise statement of what the user actually wants: their underlying reason and desired end state for this work. Omit on later updates to retain the stored intention."
+                        },
+                        "understands_user_intent": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100,
+                            "description": "Self-assessment, 0-100, of how well you understand what the user actually wants and how faithfully this plan represents it: their underlying goal, what they left implicit, and what outcome would make them consider this done. Before scoring, form a requirement inventory covering outcomes, deliverables, constraints, prohibited actions, integration paths, edge cases, and necessary follow-through, and check that the plan and its feedback loops name an explicit observation or check for each item. A generic instruction to run tests, verify, or review does not establish coverage: tests count only for behaviors they actually enforce, while non-testable requirements such as edit scope, dependency limits, required reporting, branches or commits, and prohibited modifications need separate explicit checks. Score low when interpretations of the request still materially diverge, you are guessing at intent, or any material item is unrepresented. Prefer resolving low understanding by re-reading the request and investigating the conversation and codebase over asking the user, since asking blocks them."
+                        }
+                    }
+                },
                 "goals": {
                     "type": "array",
                     "description": "Optional goal-level assessments, one per todo group. Use group: null for an ungrouped list. Stored assessments for groups omitted from an update are retained.",
                     "items": {
                         "type": "object",
-                        "required": ["alignment_score", "hill_climbability", "feedback_loop"],
+                        "required": ["closed_feedback_loop", "feedback_loop"],
                         "properties": {
                             "group": {
                                 "type": "string",
                                 "description": "Group label this goal describes. Omit or null for the ungrouped list."
                             },
-                            "user_intention": {
-                                "type": "string",
-                                "description": "Optional concise statement of the user's underlying reason or desired outcome for this goal. Omit on later updates to retain the stored intention."
-                            },
-                            "alignment_score": {
+                            "closed_feedback_loop": {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 100,
-                                "description": "Self-assessment, 0-100, of how faithfully the objective and feedback loop together represent the user's stated request and underlying intention. Before scoring, form a requirement inventory covering outcomes, deliverables, constraints, prohibited actions, integration paths, edge cases, and necessary follow-through. Score the weaker link rather than averaging: (1) whether the objective captures the intended outcome plus every material constraint and deliverable, and (2) whether the feedback loop names an explicit observation or check that can detect achievement or failure for each inventory item. A generic instruction to run tests, verify, or review does not establish coverage: tests count only for behaviors they actually enforce, while non-testable requirements such as edit scope, dependency limits, required reporting, branches or commits, and prohibited modifications need separate explicit checks. Reserve a near-perfect score for complete requirement-to-check coverage; any material omission must reduce the score substantially. This measures representation coverage, not implementation progress or completion confidence."
-                            },
-                            "hill_climbability": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 100,
-                                "description": "Self-assessment, 0-100, of how readily progress toward this goal can be measured and compared across iterations."
-                            },
-                            "objective": {
-                                "type": "string",
-                                "description": "Optional concise measurable outcome that faithfully represents the user's intention, including every material deliverable, constraint, prohibited action, and necessary follow-through. Concision must not omit requirements that determine whether the user would consider the result correct."
+                                "description": "Self-assessment, 0-100: how much of this goal's correctness the `feedback_loop` below can tell you on its own, without your judgment or the user's."
                             },
                             "feedback_loop": {
                                 "type": "string",
-                                "description": "Concrete requirement-to-check process used to compare progress across iterations and detect whether the objective and user intention are satisfied or violated. Name an explicit observation or check for every material behavior, deliverable, constraint, prohibited action, integration path, edge case, and necessary follow-through. Generic phrases such as run tests, verify, or review count only for requirements those named checks demonstrably enforce; add separate checks for non-testable prompt requirements."
+                                "description": "Concrete requirement-to-check process used to compare progress across iterations and detect whether the user's intention is satisfied or violated. Name an explicit observation or check for every material behavior, deliverable, constraint, prohibited action, integration path, edge case, and necessary follow-through. Generic phrases such as run tests, verify, or review count only for requirements those named checks demonstrably enforce; add separate checks for non-testable prompt requirements."
                             },
                             "end_to_end_ownership": {
                                 "type": "integer",
@@ -455,54 +599,83 @@ impl Tool for TodoTool {
 
     async fn execute(&self, input: Value, ctx: ToolContext) -> Result<ToolOutput> {
         let params: TodoInput = serde_json::from_value(normalize_todo_input(input))?;
-        let operation = if params.todos.is_some() || params.goals.is_some() {
-            "write"
-        } else {
-            "read"
-        };
-        let result = if params.todos.is_some() || params.goals.is_some() {
-            // Goals-only writes keep the stored todo list.
+        let is_write = params.todos.is_some() || params.goals.is_some() || params.plan.is_some();
+        let operation = if is_write { "write" } else { "read" };
+        let result = if is_write {
+            // Goals/plan-only writes keep the stored todo list.
             let previous = load_todos(&ctx.session_id).unwrap_or_default();
             let mut todos = params.todos.unwrap_or_else(|| previous.clone());
             merge_confidence_history(&previous, &mut todos);
             (|| {
                 let stored_goals = load_goals(&ctx.session_id).unwrap_or_default();
+                let stored_plan = load_plan(&ctx.session_id).unwrap_or_default();
                 let goals = merge_goals(&stored_goals, params.goals);
+                let plan = merge_plan(&stored_plan, params.plan);
                 if !newly_completed_groups_have_sufficient_ownership(&previous, &todos, &goals) {
                     crate::telemetry::record_todo_gate(crate::telemetry::TodoGateKind::Ownership);
                     return build_todo_output(
                         previous,
+                        stored_plan,
                         stored_goals,
+                        None,
                         None,
                         [TODO_OWNERSHIP_CONTINUATION_MESSAGE.to_string()],
                     );
                 }
-                let nudges = take_reframe_nudges(&goals, &todos);
-                for _ in &nudges {
-                    crate::telemetry::record_todo_gate(
-                        crate::telemetry::TodoGateKind::HillClimbability,
-                    );
+                let (observations, nudges) =
+                    record_reframe_observations(&plan, &goals, &todos, &previous);
+                for observation in &observations {
+                    let kind = match observation.kind {
+                        GateObservationKind::IntentUnderstanding => {
+                            crate::telemetry::TodoGateKind::IntentUnderstanding
+                        }
+                        GateObservationKind::ClosedFeedbackLoop => {
+                            crate::telemetry::TodoGateKind::ClosedFeedbackLoop
+                        }
+                    };
+                    crate::telemetry::record_todo_gate(kind);
                 }
-                // Goal-only writes, especially hill-climbability quality-gate
-                // retries, should render the assessment fields that changed
-                // instead of repeating an otherwise identical todo plan.
-                let concise_goal_changes = (todos == previous && !stored_goals.is_empty())
+                // Best-effort: a failure to persist the observation log must not
+                // fail the todo write itself. The cost is a missing reminder.
+                if let Err(err) = append_gate_observations(&ctx.session_id, &observations) {
+                    crate::logging::warn(&format!(
+                        "[tool:todo] failed to record gate observations session_id={} error={}",
+                        ctx.session_id, err
+                    ));
+                }
+                // Assessment-only writes, especially quality-gate retries,
+                // should render the fields that changed instead of repeating an
+                // otherwise identical todo plan.
+                let assessment_only = todos == previous;
+                let concise_goal_changes = (assessment_only && !stored_goals.is_empty())
                     .then(|| goal_changes(&stored_goals, &goals));
+                let concise_plan_change = assessment_only
+                    .then(|| plan_change(&stored_plan, &plan))
+                    .flatten();
                 save_todos(&ctx.session_id, &todos)?;
                 save_goals(&ctx.session_id, &goals)?;
+                save_plan(&ctx.session_id, &plan)?;
 
                 Bus::global().publish(BusEvent::TodoUpdated(TodoEvent {
                     session_id: ctx.session_id.clone(),
                     todos: todos.clone(),
                 }));
 
-                build_todo_output(todos, goals, concise_goal_changes, nudges)
+                build_todo_output(
+                    todos,
+                    plan,
+                    goals,
+                    concise_plan_change,
+                    concise_goal_changes,
+                    nudges,
+                )
             })()
         } else {
             (|| {
                 let todos = load_todos(&ctx.session_id)?;
                 let goals = load_goals(&ctx.session_id).unwrap_or_default();
-                build_todo_output(todos, goals, None, Vec::new())
+                let plan = load_plan(&ctx.session_id).unwrap_or_default();
+                build_todo_output(todos, plan, goals, None, None, Vec::new())
             })()
         };
         result.map_err(|err| {
@@ -531,9 +704,10 @@ mod tests {
             .get("properties")
             .and_then(|v| v.as_object())
             .expect("todo schema should have properties");
-        assert_eq!(props.len(), 3);
+        assert_eq!(props.len(), 4);
         assert!(props.contains_key("intent"));
         assert!(props.contains_key("todos"));
+        assert!(props.contains_key("plan"));
         assert!(props.contains_key("goals"));
 
         let item = props["todos"]
@@ -551,10 +725,29 @@ mod tests {
             .expect("todo item should advertise properties");
         assert!(item_props.contains_key("confidence"));
         assert!(item_props.contains_key("completion_confidence"));
-        assert!(!item_props.contains_key("hill_climbability"));
+        assert!(!item_props.contains_key("closed_feedback_loop"));
         assert_eq!(
             item_props["confidence"]["description"],
             "Self-assessed confidence, 0-100, that this todo can be completed correctly. Reassess it as evidence accumulates while working."
+        );
+
+        let plan_props = props["plan"]
+            .get("properties")
+            .and_then(|v| v.as_object())
+            .expect("plan should describe properties");
+        assert!(plan_props.contains_key("user_intention"));
+        assert!(plan_props.contains_key("understands_user_intent"));
+        assert!(!plan_props.contains_key("alignment_score"));
+        assert!(!plan_props.contains_key("user_intention_alignment"));
+        assert_eq!(plan_props.len(), 2);
+        let plan_required = props["plan"]["required"]
+            .as_array()
+            .expect("plan should advertise required fields");
+        assert!(plan_required.iter().any(|value| value == "user_intention"));
+        assert!(
+            plan_required
+                .iter()
+                .any(|value| value == "understands_user_intent")
         );
 
         let goal_props = props["goals"]
@@ -563,14 +756,14 @@ mod tests {
             .and_then(|v| v.as_object())
             .expect("goals should describe item objects");
         assert!(goal_props.contains_key("group"));
-        assert!(goal_props.contains_key("user_intention"));
-        assert!(goal_props.contains_key("alignment_score"));
-        assert!(!goal_props.contains_key("user_intention_alignment"));
-        assert!(goal_props.contains_key("hill_climbability"));
-        assert!(goal_props.contains_key("objective"));
+        assert!(goal_props.contains_key("closed_feedback_loop"));
         assert!(goal_props.contains_key("feedback_loop"));
         assert!(goal_props.contains_key("end_to_end_ownership"));
-        assert_eq!(goal_props.len(), 7);
+        // Intent lives on the plan, not per goal.
+        assert!(!goal_props.contains_key("user_intention"));
+        assert!(!goal_props.contains_key("alignment_score"));
+        assert!(!goal_props.contains_key("objective"));
+        assert_eq!(goal_props.len(), 4);
 
         let goal_required = props["goals"]["items"]["required"]
             .as_array()
@@ -578,29 +771,26 @@ mod tests {
         assert!(
             goal_required
                 .iter()
-                .any(|value| value == "hill_climbability")
+                .any(|value| value == "closed_feedback_loop")
         );
         assert!(goal_required.iter().any(|value| value == "feedback_loop"));
-        assert!(goal_required.iter().any(|value| value == "alignment_score"));
 
-        let alignment_description = goal_props["alignment_score"]
+        let alignment_description = plan_props["understands_user_intent"]
             .get("description")
             .and_then(Value::as_str)
             .expect("alignment score should describe representation coverage");
         for required_concept in [
+            "what the user actually wants",
             "requirement inventory",
-            "weaker link",
-            "objective captures the intended outcome",
             "explicit observation or check",
             "generic instruction to run tests",
             "tests count only for behaviors they actually enforce",
             "non-testable requirements",
             "prohibited modifications",
-            "near-perfect score",
             "integration path",
             "edge case",
             "necessary follow-through",
-            "not implementation progress",
+            "over asking the user",
         ] {
             assert!(
                 alignment_description.contains(required_concept),
@@ -636,19 +826,18 @@ mod tests {
         assert!(ownership_description.contains("full intended user outcome"));
         assert!(ownership_description.contains("necessary follow-through"));
         assert!(!ownership_description.contains("90"));
-        assert!(!ownership_description.contains("91"));
         assert!(
             !ownership_description
                 .to_ascii_lowercase()
                 .contains("threshold")
         );
 
-        let hill_description = goal_props["hill_climbability"]
+        let loop_description = goal_props["closed_feedback_loop"]
             .get("description")
             .and_then(Value::as_str)
-            .expect("hill-climbability should describe the assessment neutrally");
-        assert!(!hill_description.contains(&LOW_HILL_CLIMBABILITY.to_string()));
-        assert!(!hill_description.to_ascii_lowercase().contains("threshold"));
+            .expect("closed feedback loop should describe the assessment neutrally");
+        assert!(!loop_description.contains(&LOW_CLOSED_FEEDBACK_LOOP.to_string()));
+        assert!(!loop_description.to_ascii_lowercase().contains("threshold"));
 
         let model_visible_schema = serde_json::to_string(&schema)
             .expect("todo schema should serialize")
@@ -743,65 +932,81 @@ mod tests {
     }
 
     #[test]
-    fn accepts_goals_including_string_coercion() {
+    fn accepts_goals_and_plan_including_string_coercion() {
         let input = json!({
+            "plan": {"user_intention": "make repository search feel instant", "understands_user_intent": "97"},
             "goals": [
-                {"group": "optimize grep", "user_intention": "make repository search feel instant", "alignment_score": "97", "hill_climbability": "95", "objective": "p50 under 50ms", "feedback_loop": "run the grep benchmark and compare p50"},
-                {"hill_climbability": 20}
+                {"group": "optimize grep", "closed_feedback_loop": "95", "feedback_loop": "run the grep benchmark and compare p50"},
+                {"closed_feedback_loop": 20}
             ]
         });
-        let parsed = parse(input).expect("goals should parse");
-        let goals = parsed.goals.expect("goals present");
-        assert_eq!(goals[0].hill_climbability, Some(95));
-        assert_eq!(goals[0].alignment_score, Some(97));
+        let parsed = parse(input).expect("goals and plan should parse");
+        let plan = parsed.plan.expect("plan present");
+        assert_eq!(plan.understands_user_intent, Some(97));
         assert_eq!(
-            goals[0].user_intention.as_deref(),
+            plan.user_intention.as_deref(),
             Some("make repository search feel instant")
         );
-        assert_eq!(goals[0].objective.as_deref(), Some("p50 under 50ms"));
+        let goals = parsed.goals.expect("goals present");
+        assert_eq!(goals[0].closed_feedback_loop, Some(95));
         assert_eq!(
             goals[0].feedback_loop.as_deref(),
             Some("run the grep benchmark and compare p50")
         );
         // Runtime parsing remains backward-compatible with stored or older
         // provider payloads even though the advertised schema requires the field.
-        assert_eq!(goals[1].alignment_score, None);
         assert_eq!(goals[1].feedback_loop, None);
         assert_eq!(goals[1].group, None);
     }
 
     #[test]
-    fn accepts_legacy_alignment_key_but_serializes_the_new_name() {
+    fn stringified_plan_object_is_accepted() {
         let parsed = parse(json!({
-            "goals": [{
-                "user_intention_alignment": "97",
-                "hill_climbability": 96,
-                "feedback_loop": "compare every requirement against observed behavior"
-            }]
+            "plan": "{\"user_intention\":\"ship it\",\"understands_user_intent\":\"96\"}"
+        }))
+        .expect("stringified plan should parse");
+        let plan = parsed.plan.expect("plan present");
+        assert_eq!(plan.user_intention.as_deref(), Some("ship it"));
+        assert_eq!(plan.understands_user_intent, Some(96));
+    }
+
+    #[test]
+    fn accepts_legacy_plan_alignment_key_but_serializes_the_new_name() {
+        let parsed = parse(json!({
+            "plan": {"user_intention_alignment": "97"}
         }))
         .expect("legacy alignment key should remain readable");
-        let goal = parsed.goals.expect("goals present").remove(0);
-        assert_eq!(goal.alignment_score, Some(97));
+        let plan = parsed.plan.expect("plan present");
+        assert_eq!(plan.understands_user_intent, Some(97));
 
-        let serialized = serde_json::to_value(goal).expect("goal should serialize");
-        assert_eq!(serialized["alignment_score"], 97);
+        let serialized = serde_json::to_value(plan).expect("plan should serialize");
+        assert_eq!(serialized["understands_user_intent"], 97);
         assert!(serialized.get("user_intention_alignment").is_none());
 
-        let legacy_field: TodoGoalField = serde_json::from_str("\"user_intention_alignment\"")
-            .expect("legacy goal-change field should deserialize");
-        assert_eq!(legacy_field, TodoGoalField::AlignmentScore);
+        let legacy_field: TodoPlanField = serde_json::from_str("\"user_intention_alignment\"")
+            .expect("legacy plan-change field should deserialize");
+        assert_eq!(legacy_field, TodoPlanField::UnderstandsUserIntent);
         assert_eq!(
-            serde_json::to_string(&legacy_field).expect("goal field should serialize"),
-            "\"alignment_score\""
+            serde_json::to_string(&legacy_field).expect("plan field should serialize"),
+            "\"understands_user_intent\""
         );
     }
 
     fn goal(group: Option<&str>, score: u8) -> TodoGoal {
         TodoGoal {
             group: group.map(str::to_string),
-            alignment_score: Some(100),
-            hill_climbability: Some(score),
+            closed_feedback_loop: Some(score),
             ..Default::default()
+        }
+    }
+
+    /// A plan whose intent assessment clears the private gate, so goal-level
+    /// tests observe only closed feedback loop behavior.
+    fn aligned_plan() -> TodoPlan {
+        TodoPlan {
+            user_intention: Some("understood".to_string()),
+            understands_user_intent: Some(100),
+            understands_user_intent_history: vec![100],
         }
     }
 
@@ -812,29 +1017,51 @@ mod tests {
         let merged = merge_goals(&stored, Some(vec![goal(Some(" a "), 30)]));
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].group.as_deref(), Some("a"));
-        assert_eq!(merged[0].hill_climbability, Some(30));
+        assert_eq!(merged[0].closed_feedback_loop, Some(30));
         assert_eq!(merged[1].group.as_deref(), Some("b"));
         // No incoming goals: stored goals unchanged.
         assert_eq!(merge_goals(&stored, None).len(), 2);
     }
 
     #[test]
-    fn merge_goals_retains_user_intention_when_update_omits_it() {
-        let mut stored_goal = goal(Some("a"), 20);
-        stored_goal.user_intention = Some("make search feel instant".to_string());
-        stored_goal.alignment_score = Some(60);
-        let stored = vec![stored_goal];
+    fn merge_plan_retains_stored_intent_when_update_omits_fields() {
+        let stored = TodoPlan {
+            user_intention: Some("make search feel instant".to_string()),
+            understands_user_intent: Some(60),
+            understands_user_intent_history: vec![60],
+        };
 
-        let mut updated_goal = goal(Some("a"), 90);
-        updated_goal.alignment_score = Some(95);
-        let merged = merge_goals(&stored, Some(vec![updated_goal]));
-
-        assert_eq!(merged[0].hill_climbability, Some(90));
-        assert_eq!(merged[0].alignment_score, Some(95));
+        let merged = merge_plan(
+            &stored,
+            Some(TodoPlan {
+                user_intention: None,
+                understands_user_intent: Some(95),
+                ..Default::default()
+            }),
+        );
         assert_eq!(
-            merged[0].user_intention.as_deref(),
+            merged.user_intention.as_deref(),
             Some("make search feel instant")
         );
+        assert_eq!(merged.understands_user_intent, Some(95));
+
+        // An omitted plan leaves the stored assessment untouched.
+        assert_eq!(merge_plan(&stored, None), stored);
+    }
+
+    #[test]
+    fn plan_change_reports_only_updated_intent_fields() {
+        let before = aligned_plan();
+        let after = TodoPlan {
+            user_intention: Some("understood better".to_string()),
+            ..before.clone()
+        };
+
+        let change = plan_change(&before, &after).expect("intent change should be reported");
+        assert_eq!(change.fields, vec![TodoPlanField::UserIntention]);
+        assert_eq!(change.before.as_ref(), Some(&before));
+        assert_eq!(change.after.as_ref(), Some(&after));
+        assert!(plan_change(&before, &before).is_none());
     }
 
     fn open_todo(group: Option<&str>) -> TodoItem {
@@ -851,10 +1078,13 @@ mod tests {
     #[test]
     fn ownership_gate_output_preserves_the_saved_todo_card() {
         let todos = vec![open_todo(Some("ship"))];
+        let plan = aligned_plan();
         let goals = vec![goal(Some("ship"), 96)];
         let output = build_todo_output(
             todos.clone(),
+            plan.clone(),
             goals.clone(),
+            None,
             None,
             [TODO_OWNERSHIP_CONTINUATION_MESSAGE.to_string()],
         )
@@ -866,23 +1096,131 @@ mod tests {
         assert!(output.output.contains(TODO_OWNERSHIP_CONTINUATION_MESSAGE));
         assert_eq!(
             output.metadata,
-            Some(json!({"todos": todos, "goals": goals}))
+            Some(json!({"todos": todos, "plan": plan, "goals": goals}))
         );
+    }
+
+    fn test_ctx(session_id: &str) -> ToolContext {
+        ToolContext {
+            session_id: session_id.to_string(),
+            message_id: session_id.to_string(),
+            tool_call_id: "call".to_string(),
+            working_dir: None,
+            stdin_request_tx: None,
+            graceful_shutdown_signal: None,
+            execution_mode: crate::tool::ToolExecutionMode::Direct,
+        }
+    }
+
+    /// End-to-end through the real tool, which is what the model actually sees.
+    /// A first plan write with honestly-moderate scores must come back clean:
+    /// this is the exact case that previously returned two nudges and spent the
+    /// turn re-justifying the plan instead of doing the work.
+    #[tokio::test]
+    async fn a_moderate_first_write_returns_no_continuation_and_records_instead() {
+        let _guard = crate::storage::lock_test_env();
+        let previous_home = std::env::var_os("JCODE_HOME");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        crate::env::set_var("JCODE_HOME", dir.path());
+        let session = "gate-deferral-execute";
+
+        let output = TodoTool::new()
+            .execute(
+                json!({
+                    "todos": [{
+                        "content": "make utf16 transcode faster",
+                        "status": "in_progress",
+                        "priority": "high",
+                        "id": "opt",
+                        "group": "speed",
+                        "confidence": 70,
+                    }],
+                    "plan": {
+                        "user_intention": "beat the baseline",
+                        "understands_user_intent": 82,
+                    },
+                    "goals": [{
+                        "group": "speed",
+                        "closed_feedback_loop": 80,
+                        "feedback_loop": "run ./grade and read the score",
+                    }],
+                }),
+                test_ctx(session),
+            )
+            .await
+            .expect("todo write should succeed");
+
+        assert!(
+            !output
+                .output
+                .contains(TODO_INTENT_UNDERSTANDING_CONTINUATION_MESSAGE),
+            "a moderate first write must not be interrupted: {}",
+            output.output
+        );
+        assert!(
+            !output
+                .output
+                .to_ascii_lowercase()
+                .contains("not high enough"),
+            "no gate text should reach the model mid-turn: {}",
+            output.output
+        );
+
+        // The points were recorded for the turn-end digest instead.
+        let observations = crate::todo::load_gate_observations(session).expect("observations");
+        assert_eq!(observations.len(), 2);
+
+        // Histories are accumulating, which is what the digest reasons over.
+        let plan = load_plan(session).expect("plan");
+        assert_eq!(plan.understands_user_intent_history, vec![82]);
+        let goals = load_goals(session).expect("goals");
+        assert_eq!(goals[0].closed_feedback_loop_history, vec![80]);
+
+        // Second write at a higher score: still silent, history grows, and the
+        // digest now has the trajectory available.
+        let output = TodoTool::new()
+            .execute(
+                json!({"plan": {"understands_user_intent": 97}}),
+                test_ctx(session),
+            )
+            .await
+            .expect("second write should succeed");
+        assert!(
+            !output
+                .output
+                .to_ascii_lowercase()
+                .contains("not high enough")
+        );
+        let plan = load_plan(session).expect("plan");
+        assert_eq!(plan.understands_user_intent_history, vec![82, 97]);
+
+        // The climb does not erase the point. The turn began without solid
+        // understanding, so the work done before it settled still needs a
+        // re-check; the wording just reflects that it settled late.
+        let observations = crate::todo::load_gate_observations(session).expect("observations");
+        let goals = load_goals(session).expect("goals");
+        let digest = crate::todo::build_gate_digest(&observations, &plan, &goals)
+            .expect("both recorded points should be surfaced");
+        assert!(digest.contains("started this work without understanding"));
+        assert!(digest.contains("feedback loop"));
+
+        match previous_home {
+            Some(value) => crate::env::set_var("JCODE_HOME", value),
+            None => crate::env::remove_var("JCODE_HOME"),
+        }
     }
 
     #[test]
     fn goal_changes_include_only_updated_quality_fields() {
         let before = TodoGoal {
             group: Some("search".to_string()),
-            user_intention: Some("make search feel instant".to_string()),
-            alignment_score: Some(99),
-            hill_climbability: Some(90),
-            objective: Some("Keep p50 below 50ms".to_string()),
+            closed_feedback_loop: Some(90),
             feedback_loop: Some("Run one benchmark".to_string()),
             end_to_end_ownership: None,
+            ..Default::default()
         };
         let after = TodoGoal {
-            hill_climbability: Some(98),
+            closed_feedback_loop: Some(98),
             feedback_loop: Some("Run five benchmarks and compare p50".to_string()),
             ..before.clone()
         };
@@ -894,96 +1232,292 @@ mod tests {
         assert_eq!(changes[0].after.as_ref(), Some(&after));
         assert_eq!(
             changes[0].fields,
-            vec![TodoGoalField::HillClimbability, TodoGoalField::FeedbackLoop,]
+            vec![
+                TodoGoalField::ClosedFeedbackLoop,
+                TodoGoalField::FeedbackLoop,
+            ]
         );
     }
 
+    /// The core behavior change: a low score records an observation for the
+    /// turn-end digest instead of interrupting the write, and repeated writes
+    /// do not re-interrupt.
     #[test]
-    fn reframe_nudge_recurs_for_every_low_open_goal_write() {
+    fn low_open_goal_records_an_observation_without_interrupting() {
         let todos = vec![open_todo(Some("design"))];
+        let plan = aligned_plan();
         let goals = vec![goal(Some("design"), 95), goal(Some("perf"), 96)];
-        let nudges = take_reframe_nudges(&goals, &todos);
-        assert_eq!(nudges.len(), 1);
-        assert_eq!(nudges[0], TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE);
-        assert!(!nudges[0].contains("95"));
-        assert!(nudges[0].contains("hill-climbability"));
-        assert!(!nudges[0].to_ascii_lowercase().contains("threshold"));
-        assert!(!nudges[0].to_ascii_lowercase().contains("gate"));
-        // A subsequent write receives the same generic guidance while the
-        // private condition remains applicable.
-        assert_eq!(take_reframe_nudges(&goals, &todos).len(), 1);
+        let (observations, nudges) = record_reframe_observations(&plan, &goals, &todos, &[]);
+
+        assert!(
+            nudges.is_empty(),
+            "a low closed feedback loop score must not interrupt the write"
+        );
+        assert_eq!(
+            observations,
+            vec![GateObservation {
+                kind: GateObservationKind::ClosedFeedbackLoop,
+                group: Some("design".to_string()),
+                score: Some(95),
+            }]
+        );
+        // A subsequent write still records, still does not interrupt.
+        let (again, nudges) = record_reframe_observations(&plan, &goals, &todos, &[]);
+        assert_eq!(again, observations);
+        assert!(nudges.is_empty());
     }
 
     #[test]
-    fn alignment_nudge_requires_comprehensive_objective_and_feedback_coverage() {
+    fn low_intent_is_plan_level_and_independent_of_goals() {
         let todos = vec![open_todo(Some("coverage"))];
-        let mut goal = goal(Some("coverage"), 96);
-        goal.alignment_score = Some(95);
-        let nudges = take_reframe_nudges(&[goal], &todos);
-
-        assert_eq!(nudges, vec![TODO_ALIGNMENT_CONTINUATION_MESSAGE]);
-        assert!(nudges[0].contains("objective"));
-        assert!(nudges[0].contains("feedback loop"));
-        assert!(nudges[0].contains("requirement inventory"));
-        assert!(nudges[0].contains("explicit observation or check"));
-        assert!(nudges[0].contains("non-testable requirements"));
-        assert!(!nudges[0].contains("95"));
-        assert!(!nudges[0].to_ascii_lowercase().contains("threshold"));
-    }
-
-    #[test]
-    fn alignment_and_hill_nudges_report_both_independent_weak_links() {
-        let todos = vec![open_todo(Some("coverage"))];
-        let mut goal = goal(Some("coverage"), 95);
-        goal.alignment_score = Some(95);
-        let nudges = take_reframe_nudges(&[goal], &todos);
+        let plan = TodoPlan {
+            user_intention: Some("partially understood".to_string()),
+            understands_user_intent: Some(95),
+            understands_user_intent_history: vec![95],
+        };
+        let (observations, nudges) =
+            record_reframe_observations(&plan, &[goal(Some("coverage"), 96)], &todos, &[]);
 
         assert_eq!(
-            nudges,
+            observations,
+            vec![GateObservation {
+                kind: GateObservationKind::IntentUnderstanding,
+                group: None,
+                score: Some(95),
+            }]
+        );
+        // 95 is below threshold but nowhere near severe, so exploration is
+        // given the chance to resolve it rather than being interrupted.
+        assert!(nudges.is_empty());
+    }
+
+    /// The single retained immediate nudge: the agent's first plan write says it
+    /// does not understand the task at all, and a whole turn of wrong work
+    /// cannot be undone at turn end.
+    #[test]
+    fn severely_low_first_intent_still_nudges_immediately() {
+        let todos = vec![open_todo(None)];
+        let plan = TodoPlan {
+            user_intention: Some("guessing".to_string()),
+            understands_user_intent: Some(40),
+            understands_user_intent_history: vec![40],
+        };
+        let (_, nudges) = record_reframe_observations(&plan, &[], &todos, &[]);
+        assert_eq!(nudges, vec![TODO_INTENT_UNDERSTANDING_CONTINUATION_MESSAGE]);
+        assert!(!nudges[0].contains("40"));
+        assert!(!nudges[0].to_ascii_lowercase().contains("threshold"));
+
+        // Once the plan has a history, the same severe score is deferred to the
+        // digest rather than nudged again on every write.
+        let later = TodoPlan {
+            understands_user_intent_history: vec![40, 41],
+            ..plan
+        };
+        let (_, nudges) = record_reframe_observations(&later, &[], &todos, &[]);
+        assert!(nudges.is_empty());
+    }
+
+    /// Work that was already complete before this write is grandfathered: the
+    /// turn cannot go back and improve a loop over work it did not do.
+    #[test]
+    fn work_already_closed_before_this_write_records_nothing() {
+        let mut done = open_todo(None);
+        done.status = "completed".to_string();
+        let already = vec![done.clone()];
+        let (observations, nudges) = record_reframe_observations(
+            &TodoPlan::default(),
+            &[goal(None, 10)],
+            &already,
+            &already,
+        );
+        assert!(observations.is_empty());
+        assert!(nudges.is_empty());
+    }
+
+    /// A group created and finished in one write must still be observed. This is
+    /// where a weak feedback loop hides best: declare it done in one step and no
+    /// "still open" check ever sees it.
+    #[test]
+    fn a_group_closed_by_this_write_is_still_observed() {
+        let mut done = open_todo(Some("one shot"));
+        done.status = "completed".to_string();
+        let (observations, nudges) = record_reframe_observations(
+            &aligned_plan(),
+            &[goal(Some("one shot"), 40)],
+            &[done],
+            &[],
+        );
+        assert!(nudges.is_empty());
+        assert_eq!(
+            observations,
+            vec![GateObservation {
+                kind: GateObservationKind::ClosedFeedbackLoop,
+                group: Some("one shot".to_string()),
+                score: Some(40),
+            }]
+        );
+    }
+
+    #[test]
+    fn both_weak_links_are_recorded_independently() {
+        let todos = vec![open_todo(Some("coverage"))];
+        let plan = TodoPlan {
+            user_intention: Some("partially understood".to_string()),
+            understands_user_intent: Some(95),
+            understands_user_intent_history: vec![95],
+        };
+        let (observations, _) =
+            record_reframe_observations(&plan, &[goal(Some("coverage"), 95)], &todos, &[]);
+        assert_eq!(
+            observations
+                .iter()
+                .map(|observation| observation.kind)
+                .collect::<Vec<_>>(),
             vec![
-                TODO_ALIGNMENT_CONTINUATION_MESSAGE,
-                TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE,
+                GateObservationKind::IntentUnderstanding,
+                GateObservationKind::ClosedFeedbackLoop,
             ]
         );
     }
 
     #[test]
-    fn missing_quality_scores_do_not_bypass_open_goal_gates() {
+    fn missing_quality_scores_still_record_observations() {
         let todos = vec![open_todo(Some("coverage"))];
         let mut goal = goal(Some("coverage"), 96);
-        goal.alignment_score = None;
-        goal.hill_climbability = None;
+        goal.closed_feedback_loop = None;
 
+        let (observations, _) =
+            record_reframe_observations(&TodoPlan::default(), &[goal], &todos, &[]);
         assert_eq!(
-            take_reframe_nudges(&[goal], &todos),
+            observations
+                .iter()
+                .map(|observation| observation.kind)
+                .collect::<Vec<_>>(),
             vec![
-                TODO_ALIGNMENT_CONTINUATION_MESSAGE,
-                TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE,
+                GateObservationKind::IntentUnderstanding,
+                GateObservationKind::ClosedFeedbackLoop,
             ]
         );
     }
 
+    /// Groups already complete before this write are grandfathered, so a
+    /// long-lived session does not re-flag work from previous turns.
     #[test]
-    fn reframe_nudge_skips_closed_goals() {
-        // Low goal whose todos are all completed: nothing to reframe.
+    fn observations_skip_goals_closed_in_an_earlier_write() {
         let mut done = open_todo(Some("legacy"));
         done.status = "completed".to_string();
+        let already = vec![done];
         let goals = vec![goal(Some("legacy"), 10)];
-        assert!(take_reframe_nudges(&goals, &[done]).is_empty());
+        let (observations, _) =
+            record_reframe_observations(&aligned_plan(), &goals, &already, &already);
+        assert!(observations.is_empty());
     }
 
     #[test]
-    fn reframe_nudge_covers_ungrouped_implicit_goal() {
+    fn observations_cover_the_ungrouped_implicit_goal() {
         let todos = vec![open_todo(None)];
         let goals = vec![goal(None, 15)];
-        let nudges = take_reframe_nudges(&goals, &todos);
-        assert_eq!(nudges.len(), 1);
-        assert_eq!(nudges[0], TODO_HILL_CLIMBABILITY_CONTINUATION_MESSAGE);
+        let (observations, _) = record_reframe_observations(&aligned_plan(), &goals, &todos, &[]);
+        assert_eq!(
+            observations,
+            vec![GateObservation {
+                kind: GateObservationKind::ClosedFeedbackLoop,
+                group: None,
+                score: Some(15),
+            }]
+        );
+    }
+
+    /// Tool-owned histories are the substrate the turn-end digest reasons over,
+    /// so a model-supplied trail must not be able to fabricate a climb.
+    #[test]
+    fn plan_and_goal_score_histories_are_tool_maintained() {
+        let stored = TodoPlan {
+            user_intention: Some("ship it".to_string()),
+            understands_user_intent: Some(70),
+            understands_user_intent_history: vec![70],
+        };
+        let merged = merge_plan(
+            &stored,
+            Some(TodoPlan {
+                understands_user_intent: Some(88),
+                // Forged trail: discarded in favor of the stored one.
+                understands_user_intent_history: vec![1, 2, 3],
+                ..Default::default()
+            }),
+        );
+        assert_eq!(merged.understands_user_intent_history, vec![70, 88]);
+        assert_eq!(merged.user_intention.as_deref(), Some("ship it"));
+
+        // Re-sending the same score does not manufacture an extra step.
+        let merged = merge_plan(
+            &merged,
+            Some(TodoPlan {
+                understands_user_intent: Some(88),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(merged.understands_user_intent_history, vec![70, 88]);
+
+        let stored_goals = merge_goals(&[], Some(vec![goal(Some("perf"), 60)]));
+        assert_eq!(stored_goals[0].closed_feedback_loop_history, vec![60]);
+        let merged_goals = merge_goals(&stored_goals, Some(vec![goal(Some("perf"), 91)]));
+        assert_eq!(merged_goals[0].closed_feedback_loop_history, vec![60, 91]);
+    }
+
+    /// A write that revises one assessment must not erase the others, or the
+    /// digest would read a stale `None` and re-raise a resolved point.
+    #[test]
+    fn omitted_goal_fields_inherit_the_stored_assessment() {
+        let stored = merge_goals(
+            &[],
+            Some(vec![TodoGoal {
+                group: Some("perf".to_string()),
+                closed_feedback_loop: Some(97),
+                feedback_loop: Some("cargo bench".to_string()),
+                end_to_end_ownership: Some(96),
+                ..Default::default()
+            }]),
+        );
+        let merged = merge_goals(
+            &stored,
+            Some(vec![TodoGoal {
+                group: Some("perf".to_string()),
+                ..Default::default()
+            }]),
+        );
+        assert_eq!(merged[0].closed_feedback_loop, Some(97));
+        assert_eq!(merged[0].feedback_loop.as_deref(), Some("cargo bench"));
+        assert_eq!(merged[0].end_to_end_ownership, Some(96));
     }
 
     #[test]
     fn garbage_string_still_errors() {
         assert!(parse(json!({"todos": "not json at all"})).is_err());
+    }
+
+    /// Sessions and model calls written before the rename carry
+    /// `hill_climbability`. Those must keep loading, or resuming an old session
+    /// silently drops its goal assessments and re-raises resolved gate points.
+    #[test]
+    fn pre_rename_hill_climbability_keys_still_load() {
+        let goal: crate::todo::TodoGoal = serde_json::from_value(json!({
+            "group": "optimize grep",
+            "hill_climbability": 91,
+            "hill_climbability_history": [70, 91],
+            "feedback_loop": "cargo bench grep"
+        }))
+        .expect("the pre-rename key must still deserialize");
+        assert_eq!(goal.closed_feedback_loop, Some(91));
+        assert_eq!(goal.closed_feedback_loop_history, vec![70, 91]);
+
+        let goals = parse(json!({
+            "goals": [{"group": "optimize grep", "hill_climbability": "88", "feedback_loop": "bench"}]
+        }))
+        .expect("a pre-rename tool call must still parse")
+        .goals
+        .expect("goals should be present");
+        assert_eq!(goals[0].closed_feedback_loop, Some(88));
     }
 
     fn history_todo(id: &str, confidence: Option<u8>, history: Vec<u8>) -> TodoItem {

@@ -35,9 +35,9 @@ pub use jcode_provider_openrouter::{
 };
 use jcode_provider_openrouter::{
     KIMI_FALLBACK_PROVIDERS, ModelCatalogRefreshState, ModelsCache, ParsedProvider, PinSource,
-    ProviderPin, current_unix_secs, known_providers, load_disk_cache_entry,
-    load_endpoints_disk_cache, parse_model_spec, save_disk_cache_with_source,
-    save_disk_cache_with_source_for_namespace, save_endpoints_disk_cache,
+    ProviderPin, current_unix_secs, known_providers, load_endpoints_disk_cache, parse_model_spec,
+    save_disk_cache_with_source, save_disk_cache_with_source_for_namespace,
+    save_endpoints_disk_cache,
 };
 use reqwest::Client;
 use reqwest::header::HeaderName;
@@ -713,6 +713,11 @@ fn global_endpoint_refresh() -> &'static Mutex<EndpointRefreshTracker> {
 struct ProfileCatalogRefreshTracker {
     in_flight: HashSet<String>,
     last_attempt_unix: HashMap<String, u64>,
+    /// Consecutive failed refresh attempts per profile. Used to back off so a
+    /// permanently unreachable profile (no credentials, dead endpoint, local
+    /// Ollama that is not running) does not re-attempt every
+    /// `MODEL_CATALOG_REFRESH_RETRY_SECS` for the lifetime of the process.
+    consecutive_failures: HashMap<String, u32>,
 }
 
 static GLOBAL_PROFILE_CATALOG_REFRESH: OnceLock<Mutex<ProfileCatalogRefreshTracker>> =
@@ -743,7 +748,14 @@ fn begin_profile_catalog_refresh(profile_id: &str) -> bool {
         return false;
     }
     if let Some(last) = state.last_attempt_unix.get(profile_id)
-        && now.saturating_sub(*last) < MODEL_CATALOG_REFRESH_RETRY_SECS
+        && now.saturating_sub(*last)
+            < profile_catalog_retry_delay_secs(
+                state
+                    .consecutive_failures
+                    .get(profile_id)
+                    .copied()
+                    .unwrap_or(0),
+            )
     {
         return false;
     }
@@ -755,6 +767,31 @@ fn begin_profile_catalog_refresh(profile_id: &str) -> bool {
 fn finish_profile_catalog_refresh(profile_id: &str) {
     if let Ok(mut state) = global_profile_catalog_refresh().lock() {
         state.in_flight.remove(profile_id);
+    }
+}
+
+/// Exponential backoff for repeatedly failing catalog refreshes: 60s, 2m, 4m,
+/// ... capped at one hour. A single success resets the profile to the base
+/// retry interval.
+fn profile_catalog_retry_delay_secs(consecutive_failures: u32) -> u64 {
+    const MAX_RETRY_SECS: u64 = 60 * 60;
+    MODEL_CATALOG_REFRESH_RETRY_SECS
+        .saturating_mul(1u64 << consecutive_failures.min(8))
+        .min(MAX_RETRY_SECS)
+}
+
+fn finish_profile_catalog_refresh_with_outcome(profile_id: &str, succeeded: bool) {
+    if let Ok(mut state) = global_profile_catalog_refresh().lock() {
+        state.in_flight.remove(profile_id);
+        if succeeded {
+            state.consecutive_failures.remove(profile_id);
+        } else {
+            let entry = state
+                .consecutive_failures
+                .entry(profile_id.to_string())
+                .or_insert(0);
+            *entry = entry.saturating_add(1);
+        }
     }
 }
 
@@ -800,15 +837,16 @@ pub fn maybe_schedule_openai_compatible_profile_catalog_refresh(
             .unwrap_or_default();
     handle.spawn(async move {
         let models_cache = Arc::new(RwLock::new(ModelsCache::default()));
-        match fetch_models_from_api(
+        let result = fetch_models_from_api(
             jcode_provider_core::shared_http_client(),
             api_base,
             auth,
             models_cache,
             Some(profile_id.clone()),
         )
-        .await
-        {
+        .await;
+        let succeeded = result.is_ok();
+        match result {
             Ok(models) => {
                 let updated = models_fingerprint(&models) != previous_fingerprint;
                 if updated {
@@ -833,7 +871,7 @@ pub fn maybe_schedule_openai_compatible_profile_catalog_refresh(
                 context, display_name, error
             )),
         }
-        finish_profile_catalog_refresh(&profile_id);
+        finish_profile_catalog_refresh_with_outcome(&profile_id, succeeded);
     });
 
     true
@@ -907,15 +945,16 @@ pub fn maybe_schedule_standard_openrouter_catalog_refresh(context: &'static str)
             .unwrap_or_default();
     handle.spawn(async move {
         let models_cache = Arc::new(RwLock::new(ModelsCache::default()));
-        match fetch_models_from_api(
+        let result = fetch_models_from_api(
             jcode_provider_core::shared_http_client(),
             api_base,
             auth,
             models_cache,
             Some(namespace.to_string()),
         )
-        .await
-        {
+        .await;
+        let succeeded = result.is_ok();
+        match result {
             Ok(models) => {
                 let updated = models_fingerprint(&models) != previous_fingerprint;
                 if updated {
@@ -938,7 +977,7 @@ pub fn maybe_schedule_standard_openrouter_catalog_refresh(context: &'static str)
                 context, error
             )),
         }
-        finish_profile_catalog_refresh(namespace);
+        finish_profile_catalog_refresh_with_outcome(namespace, succeeded);
     });
 
     true
@@ -1171,7 +1210,14 @@ impl OpenRouterProvider {
             }
         }
 
-        let _ = profile_id;
+        // Celeris rejects `max_tokens` values that are not a positive multiple
+        // of 256, and requires prompt + max_tokens <= 8,192. Its own default
+        // (2,048) leaves only ~6K of prompt room, so ask for a smaller
+        // completion budget to keep more of the context window usable.
+        if profile_id.is_some_and(|id| id.eq_ignore_ascii_case("celeris")) {
+            return Some(1_024);
+        }
+
         None
     }
 
@@ -1780,21 +1826,6 @@ impl OpenRouterProvider {
             .unwrap_or(true)
     }
 
-    pub(crate) fn should_merge_static_models_with_live_catalog(&self) -> bool {
-        // Built-in OpenAI-compatible provider profiles use `static_models` as a
-        // startup/pre-catalog fallback so `/model` is useful immediately after
-        // login. Once a live `/models` catalog has been fetched, the live catalog
-        // is more authoritative for access control. Keeping built-in fallback
-        // entries after a successful fetch can advertise preview/stale models that
-        // the provider rejects at chat time, which is especially confusing for
-        // direct providers such as Cerebras.
-        //
-        // Preserve static models for OpenRouter itself and for custom/named
-        // profiles, where the user supplied the list explicitly and there may be
-        // no provider-side catalog contract.
-        self.supports_provider_features || self.profile_id.is_none()
-    }
-
     pub(crate) fn filter_profile_chat_supported_models(&self, models: Vec<String>) -> Vec<String> {
         let Some(profile_id) = self.profile_id.as_deref() else {
             return models;
@@ -1829,12 +1860,6 @@ impl OpenRouterProvider {
         };
 
         source_api_base == self.api_base
-    }
-
-    pub(crate) fn load_usable_model_disk_cache_entry(
-        &self,
-    ) -> Option<jcode_provider_openrouter::DiskCache> {
-        load_disk_cache_entry().filter(|entry| self.model_disk_cache_source_matches(entry))
     }
 
     fn begin_background_model_catalog_refresh(&self) -> bool {
@@ -2035,9 +2060,9 @@ impl OpenRouterProvider {
         let models_cache = Arc::clone(&self.models_cache);
         let refresh_state = Arc::clone(&self.model_catalog_refresh);
         let previous_fingerprint = self.cached_model_catalog_fingerprint();
-
+        let ns = self.foreground_cache_namespace();
         handle.spawn(async move {
-            match fetch_models_from_api(client, api_base, auth, models_cache, None).await {
+            match fetch_models_from_api(client, api_base, auth, models_cache, ns).await {
                 Ok(models) => {
                     let updated = models_fingerprint(&models) != previous_fingerprint;
                     if updated {
@@ -2516,7 +2541,7 @@ impl OpenRouterProvider {
             self.api_base.clone(),
             self.auth.clone(),
             Arc::clone(&self.models_cache),
-            None,
+            self.foreground_cache_namespace(),
         )
         .await
     }
@@ -2528,7 +2553,7 @@ impl OpenRouterProvider {
             self.api_base.clone(),
             self.auth.clone(),
             Arc::clone(&self.models_cache),
-            None,
+            self.foreground_cache_namespace(),
         )
         .await
     }
@@ -2754,3 +2779,34 @@ mod openrouter_sse_stream;
 #[allow(clippy::await_holding_lock)]
 #[path = "openrouter_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "openrouter_catalog_merge_tests.rs"]
+mod openrouter_catalog_merge_tests;
+
+#[cfg(test)]
+mod profile_catalog_backoff_tests {
+    use super::{MODEL_CATALOG_REFRESH_RETRY_SECS, profile_catalog_retry_delay_secs};
+
+    #[test]
+    fn healthy_profile_uses_base_retry_interval() {
+        assert_eq!(
+            profile_catalog_retry_delay_secs(0),
+            MODEL_CATALOG_REFRESH_RETRY_SECS
+        );
+    }
+
+    #[test]
+    fn repeated_failures_back_off_exponentially_and_cap() {
+        assert_eq!(
+            profile_catalog_retry_delay_secs(1),
+            MODEL_CATALOG_REFRESH_RETRY_SECS * 2
+        );
+        assert_eq!(
+            profile_catalog_retry_delay_secs(3),
+            MODEL_CATALOG_REFRESH_RETRY_SECS * 8
+        );
+        // Capped at one hour no matter how many failures accumulate.
+        assert_eq!(profile_catalog_retry_delay_secs(20), 60 * 60);
+    }
+}

@@ -816,19 +816,17 @@ pub struct AutoReviewConfig {
     pub model: Option<String>,
 }
 
-/// Tool partner discovery configuration.
+/// Integration discovery configuration (legacy `[sponsors]` section name).
 ///
-/// Partner discovery makes third-party developer tools discoverable to the
-/// agent via a `discover_tools` tool backed by a hosted directory. Some
-/// partners may share revenue with Jcode when a referred user becomes a
-/// customer, but partnership status never influences recommendations. Each
-/// session's first use of `discover_tools` shows a concise disclosure with a
-/// learn-more link.
+/// Integration discovery makes third-party developer tools discoverable to
+/// the agent via a `discover_tools` tool backed by a hosted directory. Some
+/// providers may share revenue with Jcode when a referred user becomes a
+/// customer, but partnership status never influences recommendations.
 /// See <https://jcode.sh/discovery-tools>.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SponsorsConfig {
-    /// Enable tool partner discovery. Enabled by default; set to false to opt
+    /// Enable integration discovery. Enabled by default; set to false to opt
     /// out. When false, no discovery categories are added to the prompt, the
     /// `discover_tools` tool is not registered, and jcode never contacts the
     /// discovery endpoint.
@@ -980,8 +978,6 @@ impl Default for KeybindingsConfig {
         }
     }
 }
-
-/// How to display file diffs from edit/write tools
 /// Display/UI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -991,7 +987,6 @@ pub struct NativeScrollbarConfig {
     /// Show a native terminal scrollbar in the side panel (default: true)
     pub side_panel: bool,
 }
-
 impl Default for NativeScrollbarConfig {
     fn default() -> Self {
         Self {
@@ -1000,11 +995,9 @@ impl Default for NativeScrollbarConfig {
         }
     }
 }
-
 fn default_true() -> bool {
     true
 }
-
 /// Display/UI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -1022,9 +1015,11 @@ pub struct DisplayConfig {
     pub mouse_capture: bool,
     /// Enable debug socket for external control (default: false)
     pub debug_socket: bool,
+    /// Render emoji in terminal-facing TUI and CLI output (default: true)
+    pub emoji: bool,
     /// Center all content (default: false)
     pub centered: bool,
-    /// Show thinking/reasoning content by default (default: true)
+    /// Show thinking/reasoning content by default (default: false)
     pub show_thinking: bool,
     /// How to display reasoning/thinking content (off/full/current).
     /// When unset, falls back to `show_thinking` (true => full, false => off).
@@ -1040,7 +1035,11 @@ pub struct DisplayConfig {
     pub latex_rendering: LatexRenderingMode,
     /// Pin read images to side pane (default: true)
     pub pin_images: bool,
-    /// Show idle animation before first prompt (default: true)
+    /// Pin the full session todo list to the top of the chat transcript while
+    /// it scrolls, like the sticky previous-prompt preview (default: false)
+    #[serde(default)]
+    pub pin_todos: bool,
+    /// Show idle animation before first prompt (default: false)
     pub idle_animation: bool,
     /// Briefly animate user prompt line when it enters viewport (default: true)
     pub prompt_entry_animation: bool,
@@ -1083,6 +1082,12 @@ pub struct DisplayConfig {
     /// adapts jcode's palette for light backgrounds. Default: auto.
     #[serde(default)]
     pub theme: String,
+    /// Per-role color overrides, e.g. `user = "#8ab4f8"`. Any TUI color can be
+    /// configured: the named roles are substituted directly, and ad hoc shades
+    /// used by widgets follow the role they belong to. Run `/colors` to list
+    /// roles and `/colors harmony` to score the result.
+    #[serde(default)]
+    pub colors: std::collections::BTreeMap<String, String>,
     /// Opt-in active sessions manager: pressing Left arrow on an empty input
     /// opens a picker scoped to live (open) sessions, showing which are still
     /// working and which are ready for input (default: false). The `/active`
@@ -1095,24 +1100,25 @@ pub struct DisplayConfig {
     #[serde(default)]
     pub overscroll_status: OverscrollStatusMode,
 }
-
 impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             diff_mode: DiffDisplayMode::default(),
             show_diffs: None,
             pin_images: true,
+            pin_todos: false,
             queue_mode: false,
             auto_server_reload: true,
             mouse_capture: true,
             debug_socket: false,
+            emoji: true,
             centered: false,
-            show_thinking: true,
-            reasoning_display: Some(ReasoningDisplayMode::Current),
+            show_thinking: false,
+            reasoning_display: Some(ReasoningDisplayMode::Off),
             diagram_mode: DiagramDisplayMode::default(),
             markdown_spacing: MarkdownSpacingMode::default(),
             latex_rendering: LatexRenderingMode::default(),
-            idle_animation: true,
+            idle_animation: false,
             prompt_entry_animation: true,
             disabled_animations: Vec::new(),
             diff_line_wrap: true,
@@ -1127,12 +1133,12 @@ impl Default for DisplayConfig {
             native_scrollbars: NativeScrollbarConfig::default(),
             keybinding_hints: true,
             theme: String::new(),
+            colors: std::collections::BTreeMap::new(),
             active_sessions_manager: false,
             overscroll_status: OverscrollStatusMode::default(),
         }
     }
 }
-
 impl DisplayConfig {
     pub fn apply_legacy_compat(&mut self) {
         if let Some(show) = self.show_diffs.take() {
@@ -1153,6 +1159,13 @@ impl DisplayConfig {
         } else {
             ReasoningDisplayMode::Off
         })
+    }
+
+    /// Whether the user explicitly chose a reasoning display mode, as opposed
+    /// to inheriting the legacy `show_thinking` fallback. Front-ends use this
+    /// to apply their own default without overriding a deliberate choice.
+    pub fn has_explicit_reasoning_display(&self) -> bool {
+        self.reasoning_display.is_some()
     }
 
     /// Set the reasoning display mode and keep `show_thinking` in sync so the
@@ -1179,6 +1192,10 @@ pub struct FeatureConfig {
     pub swarm: bool,
     /// Enable Mermaid rendering and Mermaid-specific model guidance (default: true)
     pub mermaid: bool,
+    /// Default state of auto-poke (automatic follow-up when the model stops with
+    /// incomplete todos). `/poke on` / `/poke off` still override this per session
+    /// (default: true)
+    pub auto_poke: bool,
     /// Inject timestamps into user messages and tool results sent to the model (default: true)
     pub message_timestamps: bool,
     /// Persist auto-recalled memory injections into normal session history instead of sending
@@ -1201,6 +1218,7 @@ impl Default for FeatureConfig {
             memory: true,
             swarm: true,
             mermaid: true,
+            auto_poke: true,
             message_timestamps: true,
             persist_memory_injections: false,
             kv_cache_miss_notices: true,
@@ -1315,9 +1333,9 @@ pub struct ProviderConfig {
     /// ("myprofile"). The active model's routes always stay visible.
     pub model_picker_providers: Option<Vec<String>>,
     /// Max seconds to wait for streaming data before timing out a request with
-    /// no data received. Raise this for slow reasoning models (e.g. DeepSeek)
-    /// that think silently for minutes before emitting tokens. Default: 180.
-    /// Overridable per-launch via `JCODE_STREAM_IDLE_TIMEOUT_SECS`.
+    /// no data received. Base budget only: high reasoning efforts scale it up
+    /// automatically (see `jcode_base::provider::stream_idle_timeout_for_effort`).
+    /// Default: 180. Overridable via `JCODE_STREAM_IDLE_TIMEOUT_SECS`.
     pub stream_idle_timeout_secs: u64,
 }
 
@@ -1619,4 +1637,35 @@ pub struct LaunchHotkeysConfig {
     /// Set true once auto-import has populated `entries`, so we only bake the
     /// per-repo mapping a single time and never clobber later user edits.
     pub imported: bool,
+}
+
+#[cfg(test)]
+mod reasoning_display_defaults_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_reasoning_display_is_distinguishable_from_the_legacy_fallback() {
+        // Front-ends (the desktop) apply their own default only when the user
+        // has not chosen one, so this flag must not be true just because
+        // `show_thinking` happens to be set.
+        let mut display = DisplayConfig {
+            reasoning_display: None,
+            show_thinking: true,
+            ..DisplayConfig::default()
+        };
+        assert!(!display.has_explicit_reasoning_display());
+        assert_eq!(display.reasoning_display(), ReasoningDisplayMode::Full);
+
+        display.set_reasoning_display(ReasoningDisplayMode::Current);
+        assert!(display.has_explicit_reasoning_display());
+        assert_eq!(display.reasoning_display(), ReasoningDisplayMode::Current);
+        assert!(
+            display.show_thinking,
+            "any active display mode must keep reasoning requested from the provider"
+        );
+
+        display.set_reasoning_display(ReasoningDisplayMode::Off);
+        assert!(display.has_explicit_reasoning_display());
+        assert!(!display.show_thinking);
+    }
 }

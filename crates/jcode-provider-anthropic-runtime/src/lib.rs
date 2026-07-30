@@ -45,7 +45,7 @@ use jcode_provider_core::{
     anthropic_strip_1m_suffix as strip_1m_suffix,
 };
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -355,11 +355,6 @@ const MAX_RETRIES: u32 = 3;
 /// Base delay for exponential backoff (in milliseconds)
 const RETRY_BASE_DELAY_MS: u64 = 1000;
 
-/// Default max output tokens for Anthropic models.
-/// Set to 32k to avoid truncating long tool calls (e.g. writing large files).
-/// Override with JCODE_ANTHROPIC_MAX_TOKENS env var.
-const DEFAULT_MAX_TOKENS: u32 = 32_768;
-
 /// Cached OAuth credentials
 #[derive(Clone)]
 struct CachedCredentials {
@@ -377,7 +372,10 @@ pub struct AnthropicProvider {
     /// Cached OAuth credentials (None if using API key)
     credentials: Arc<RwLock<Option<CachedCredentials>>>,
     credential_mode: Arc<RwLock<AnthropicCredentialMode>>,
-    max_tokens: u32,
+    /// Explicit `JCODE_ANTHROPIC_MAX_TOKENS` override. When unset, the output
+    /// budget is derived per model so newer generations are not clamped to the
+    /// legacy 32K default.
+    max_tokens_override: Option<u32>,
     oauth_session_id: String,
     oauth_preflight_done: Arc<AtomicBool>,
 }
@@ -461,10 +459,9 @@ impl AnthropicProvider {
             })
         });
 
-        let max_tokens = std::env::var("JCODE_ANTHROPIC_MAX_TOKENS")
+        let max_tokens_override = std::env::var("JCODE_ANTHROPIC_MAX_TOKENS")
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
-            .unwrap_or(DEFAULT_MAX_TOKENS);
+            .and_then(|v| v.trim().parse::<u32>().ok());
         let reasoning_effort = jcode_base::config::config()
             .provider
             .anthropic_reasoning_effort
@@ -481,7 +478,7 @@ impl AnthropicProvider {
             credential_mode: Arc::new(RwLock::new(AnthropicCredentialMode::from_runtime_env(
                 jcode_provider_core::DualAuthProvider::Anthropic,
             ))),
-            max_tokens,
+            max_tokens_override,
             oauth_session_id: Uuid::new_v4().to_string(),
             oauth_preflight_done: Arc::new(AtomicBool::new(false)),
         }
@@ -584,17 +581,22 @@ impl AnthropicProvider {
     }
 
     /// Default reasoning effort to apply when the user has *not* explicitly
-    /// configured one. Claude Opus models are reasoning-heavy flagships, so we
-    /// default them to `xhigh` where supported (Opus 4.7/4.8), clamped to
-    /// `high` on older Opus. Deliberately NOT `max`: Anthropic recommends
-    /// `xhigh` as the starting point for coding/agentic work and reserves
-    /// `max` for frontier problems (it costs much more and can overthink).
-    /// Claude Fable 5 defaults to `high`: it benefits from deeper reasoning
-    /// on coding/agentic work. Every other model keeps the model's own
-    /// default (no forced effort) so cheaper models stay cheap.
+    /// configured one. Claude Opus 5 defaults to `low`: it is strong enough
+    /// at low effort for day-to-day coding/agentic work, and users can cycle
+    /// up when they want deeper reasoning. Older Claude Opus models are
+    /// reasoning-heavy flagships, so we default them to `xhigh` where
+    /// supported (Opus 4.7/4.8), clamped to `high` on older Opus.
+    /// Deliberately NOT `max`: Anthropic recommends `xhigh` as the starting
+    /// point for coding/agentic work and reserves `max` for frontier problems
+    /// (it costs much more and can overthink). Claude Fable 5 defaults to
+    /// `high`: it benefits from deeper reasoning on coding/agentic work.
+    /// Every other model keeps the model's own default (no forced effort) so
+    /// cheaper models stay cheap.
     fn default_reasoning_effort_for_model(model: &str) -> Option<String> {
         let key = Self::normalized_model_key(model);
-        if key.contains("claude-opus") {
+        if key.contains("claude-opus-5") {
+            Some("low".to_string())
+        } else if key.contains("claude-opus") {
             Some(if Self::model_supports_xhigh_effort(model) {
                 "xhigh".to_string()
             } else {
@@ -658,6 +660,14 @@ impl AnthropicProvider {
             .map(|guard| guard.clone())
             .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
         tier.filter(|_| Self::model_supports_priority_service_tier(model))
+    }
+
+    /// Output-token budget for `model`: an explicit env override when set,
+    /// otherwise the model's published maximum. A flat default would clamp
+    /// 128K-output models to 32K and truncate long agentic turns mid-tool-call.
+    fn max_tokens_for(&self, model: &str) -> u32 {
+        self.max_tokens_override
+            .unwrap_or_else(|| jcode_provider_core::anthropic::anthropic_max_output_tokens(model))
     }
 
     fn manual_thinking_budget(effort: &str, max_tokens: u32) -> Option<u32> {
@@ -724,7 +734,7 @@ impl AnthropicProvider {
             // toggle is on.
             effort
                 .or(show_thinking.then_some("low"))
-                .and_then(|effort| Self::manual_thinking_budget(effort, self.max_tokens))
+                .and_then(|effort| Self::manual_thinking_budget(effort, self.max_tokens_for(model)))
                 .map(|budget_tokens| ApiThinking::Enabled { budget_tokens })
         } else {
             None
@@ -808,6 +818,19 @@ impl AnthropicProvider {
 
         // Check if token needs refresh (expired or expiring within 5 minutes)
         if fresh_creds.expires_at < now + 300_000 && !fresh_creds.refresh_token.is_empty() {
+            // A refresh token the provider already rejected as unrecoverable
+            // cannot start working again. Retrying it added a doomed network
+            // round-trip to the critical path of every single turn, so fail
+            // straight through to the caller's API-key fallback instead.
+            if auth::refresh_state::refresh_token_is_known_rejected(
+                "claude",
+                &fresh_creds.refresh_token,
+            ) {
+                anyhow::bail!(
+                    "Claude OAuth refresh token was previously rejected by Anthropic and cannot be refreshed. Run `jcode login --provider claude` to mint a fresh token."
+                );
+            }
+
             jcode_base::logging::info(
                 "OAuth token expired or expiring soon, attempting refresh...",
             );
@@ -1012,7 +1035,7 @@ impl Provider for AnthropicProvider {
 
         let request = ApiRequest {
             model: api_model,
-            max_tokens: self.max_tokens,
+            max_tokens: self.max_tokens_for(&model),
             system: build_system_param(system, is_oauth),
             messages: format_messages_with_identity(api_messages, is_oauth),
             tools: if api_tools.is_empty() {
@@ -1300,6 +1323,10 @@ impl Provider for AnthropicProvider {
         "anthropic"
     }
 
+    fn context_window(&self) -> usize {
+        context_window::resolve(&self.model())
+    }
+
     fn supports_image_input(&self) -> bool {
         true
     }
@@ -1317,7 +1344,7 @@ impl Provider for AnthropicProvider {
             service_tier: Arc::new(std::sync::RwLock::new(self.service_tier())),
             credentials: Arc::new(RwLock::new(None)),
             credential_mode: Arc::clone(&self.credential_mode),
-            max_tokens: self.max_tokens,
+            max_tokens_override: self.max_tokens_override,
             oauth_session_id: self.oauth_session_id.clone(),
             oauth_preflight_done: Arc::new(AtomicBool::new(
                 self.oauth_preflight_done.load(Ordering::Relaxed),
@@ -1369,7 +1396,7 @@ impl Provider for AnthropicProvider {
 
         let request = ApiRequest {
             model: api_model,
-            max_tokens: self.max_tokens,
+            max_tokens: self.max_tokens_for(&model),
             system: build_system_param_split(system_static, system_dynamic, is_oauth),
             messages: format_messages_with_identity(api_messages, is_oauth),
             tools: if api_tools.is_empty() {
@@ -1738,11 +1765,12 @@ async fn stream_response(
 
     let _ = tx
         .send(Ok(StreamEvent::ConnectionPhase {
-            phase: ConnectionPhase::Connecting,
+            phase: ConnectionPhase::SendingRequest,
         }))
         .await;
 
     let connect_start = std::time::Instant::now();
+    let stream_idle_timeout = jcode_base::provider::stream_idle_timeout();
     // Build request with appropriate auth headers
     let url = if is_oauth { API_URL_OAUTH } else { API_URL };
 
@@ -1790,11 +1818,12 @@ async fn stream_response(
             .header("anthropic-beta", beta_header);
     }
 
-    let response = req
-        .json(&request)
-        .send()
-        .await
-        .context("Failed to send request to Anthropic API")?;
+    let response = jcode_provider_core::transport::send_with_initial_response_timeout(
+        req.json(&request),
+        stream_idle_timeout,
+    )
+    .await
+    .context("Failed to send request to Anthropic API")?;
 
     let connect_ms = connect_start.elapsed().as_millis();
     jcode_base::logging::info(&format!(
@@ -1830,20 +1859,18 @@ async fn stream_response(
     // Idle timeout between streamed chunks. Configurable via
     // `[provider] stream_idle_timeout_secs` / `JCODE_STREAM_IDLE_TIMEOUT_SECS`
     // so slow reasoning models don't trip a premature timeout (issue #434).
-    let sse_chunk_timeout = jcode_base::provider::stream_idle_timeout();
-
     loop {
-        let chunk = match tokio::time::timeout(sse_chunk_timeout, stream.next()).await {
+        let chunk = match tokio::time::timeout(stream_idle_timeout, stream.next()).await {
             Ok(Some(chunk_result)) => chunk_result.context("Error reading stream chunk")?,
             Ok(None) => break, // stream ended normally
             Err(_) => {
                 jcode_base::logging::warn(&format!(
                     "Anthropic SSE stream timed out (no data for {}s)",
-                    sse_chunk_timeout.as_secs()
+                    stream_idle_timeout.as_secs()
                 ));
                 anyhow::bail!(
                     "Stream read timeout: no data received for {} seconds",
-                    sse_chunk_timeout.as_secs()
+                    stream_idle_timeout.as_secs()
                 );
             }
         };
@@ -2242,6 +2269,14 @@ fn process_sse_event(
                             name: mapped_name,
                         });
                     }
+                    ApiContentBlockStart::Unknown => {
+                        // Newer/unsupported block type. Parsing succeeded, so
+                        // the rest of the stream stays intact; there is simply
+                        // nothing for this build to surface.
+                        jcode_base::logging::warn(
+                            "Anthropic stream sent an unrecognized content_block_start type; ignoring the block",
+                        );
+                    }
                 }
             }
         }
@@ -2345,93 +2380,13 @@ fn add_message_cache_breakpoint(messages: &mut [ApiMessage]) {
     jcode_provider_anthropic::add_message_cache_breakpoint(messages, is_cache_ttl_1h())
 }
 
-// Response types for SSE parsing
+mod sse_types;
+use sse_types::{
+    ApiContentBlockStart, ApiDelta, ContentBlockDeltaEvent, ContentBlockStartEvent,
+    MessageDeltaEvent, MessageStartEvent,
+};
 
-#[derive(Deserialize)]
-struct MessageStartEvent {
-    message: MessageStartMessage,
-}
-
-#[derive(Deserialize)]
-struct MessageStartMessage {
-    #[serde(default)]
-    model: Option<String>,
-    usage: Option<UsageInfo>,
-}
-
-#[derive(Deserialize)]
-struct ContentBlockStartEvent {
-    #[serde(rename = "index")]
-    _index: u32,
-    content_block: ApiContentBlockStart,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-enum ApiContentBlockStart {
-    #[serde(rename = "text")]
-    Text {
-        #[serde(rename = "text")]
-        _text: String,
-    },
-    #[serde(rename = "thinking")]
-    Thinking {
-        #[serde(default, rename = "thinking")]
-        _thinking: String,
-        #[serde(default, rename = "signature")]
-        _signature: Option<String>,
-    },
-    #[serde(rename = "redacted_thinking")]
-    RedactedThinking {
-        #[serde(default, rename = "data")]
-        _data: String,
-    },
-    #[serde(rename = "tool_use")]
-    ToolUse { id: String, name: String },
-}
-
-#[derive(Deserialize)]
-struct ContentBlockDeltaEvent {
-    #[serde(rename = "index")]
-    _index: u32,
-    delta: ApiDelta,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-enum ApiDelta {
-    #[serde(rename = "text_delta")]
-    Text { text: String },
-    #[serde(rename = "input_json_delta")]
-    InputJson { partial_json: String },
-    #[serde(rename = "thinking_delta")]
-    Thinking { thinking: String },
-    #[serde(rename = "signature_delta")]
-    Signature {
-        #[serde(rename = "signature")]
-        signature: String,
-    },
-}
-
-#[derive(Deserialize)]
-struct MessageDeltaEvent {
-    delta: MessageDeltaDelta,
-    usage: Option<UsageInfo>,
-}
-
-#[derive(Deserialize)]
-struct MessageDeltaDelta {
-    stop_reason: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct UsageInfo {
-    input_tokens: Option<u32>,
-    output_tokens: Option<u32>,
-    cache_read_input_tokens: Option<u32>,
-    cache_creation_input_tokens: Option<u32>,
-    service_tier: Option<String>,
-}
+mod context_window;
 
 #[cfg(test)]
 #[allow(clippy::await_holding_lock)]

@@ -119,6 +119,12 @@ impl Provider for OpenRouterProvider {
             "stream": true,
         });
 
+        if !self.supports_provider_features {
+            request["stream_options"] = serde_json::json!({
+                "include_usage": true,
+            });
+        }
+
         if let Some(max_tokens) = self.max_tokens {
             request["max_tokens"] = serde_json::json!(max_tokens);
         }
@@ -768,5 +774,83 @@ impl Provider for OpenRouterProvider {
             endpoints_cache: Arc::clone(&self.endpoints_cache),
             endpoint_refresh: Arc::clone(&self.endpoint_refresh),
         })
+    }
+}
+
+impl OpenRouterProvider {
+    /// The disk-cache namespace this provider's *foreground* catalog reads and
+    /// writes should use.
+    ///
+    /// Every `new_named_openai_compatible()` constructor sets the process-global
+    /// `JCODE_OPENROUTER_CACHE_NAMESPACE` env var, so with several named
+    /// profiles in one process the last one constructed wins and all profiles
+    /// collide on a single `<last-profile>_models.json`. The background refresh
+    /// path already passes an explicit namespace; the foreground paths did not.
+    /// See issue #607.
+    ///
+    /// Standard/direct OpenRouter and built-in profiles keep the existing
+    /// env-var-driven `cache_path()` semantics.
+    pub(crate) fn foreground_cache_namespace(&self) -> Option<String> {
+        self.is_user_named_profile()
+            .then(|| self.profile_id.clone())
+            .flatten()
+    }
+
+    /// The disk cache entry usable for this provider, i.e. its own namespace
+    /// (#607) and a `source_api_base` that matches this endpoint.
+    pub(crate) fn load_usable_model_disk_cache_entry(
+        &self,
+    ) -> Option<jcode_provider_openrouter::DiskCache> {
+        self.load_disk_cache_entry_for_this_profile()
+            .filter(|entry| self.model_disk_cache_source_matches(entry))
+    }
+
+    /// Load this provider's own model disk cache, ignoring the process-global
+    /// namespace env var for user-named profiles (#607).
+    pub(crate) fn load_disk_cache_entry_for_this_profile(
+        &self,
+    ) -> Option<jcode_provider_openrouter::DiskCache> {
+        match self.foreground_cache_namespace() {
+            Some(namespace) => {
+                jcode_provider_openrouter::load_disk_cache_entry_for_namespace(&namespace)
+            }
+            None => jcode_provider_openrouter::load_disk_cache_entry(),
+        }
+    }
+
+    /// True when this instance was built from a user-declared
+    /// `[providers.<name>]` profile in config.toml rather than a built-in
+    /// OpenAI-compatible profile (Cerebras, NVIDIA NIM, ...).
+    pub(crate) fn is_user_named_profile(&self) -> bool {
+        let Some(id) = self.profile_id.as_deref() else {
+            return false;
+        };
+        match jcode_base::provider_catalog::openai_compatible_profile_by_id(id) {
+            // A `[providers.<name>]` block that shadows a built-in profile name
+            // but points somewhere else is still a user-declared endpoint, so
+            // its explicit model list must be preserved.
+            Some(builtin) => normalize_api_base(builtin.api_base)
+                .is_some_and(|builtin_base| builtin_base != self.api_base),
+            None => true,
+        }
+    }
+
+    pub(crate) fn should_merge_static_models_with_live_catalog(&self) -> bool {
+        // Built-in OpenAI-compatible provider profiles use `static_models` as a
+        // startup/pre-catalog fallback so `/model` is useful immediately after
+        // login. Once a live `/models` catalog has been fetched, the live catalog
+        // is more authoritative for access control. Keeping built-in fallback
+        // entries after a successful fetch can advertise preview/stale models that
+        // the provider rejects at chat time, which is especially confusing for
+        // direct providers such as Cerebras.
+        //
+        // Preserve static models for OpenRouter itself and for custom/named
+        // profiles, where the user supplied the list explicitly and there may be
+        // no provider-side catalog contract. A profile id that is not in the
+        // built-in OpenAI-compatible catalog comes from a user-declared
+        // `[providers.<name>]` block in config.toml, so its
+        // `[[providers.<name>.models]]` entries must survive background
+        // `/models` catalog refreshes (issue #579).
+        self.supports_provider_features || self.profile_id.is_none() || self.is_user_named_profile()
     }
 }

@@ -421,6 +421,7 @@ impl RemoteConnection {
                 id,
                 content,
                 urgent,
+                ..
             } => Some(format!(
                 "{} urgent={} content_bytes={} content_chars={}",
                 base("soft_interrupt", *id),
@@ -599,6 +600,20 @@ impl RemoteConnection {
         let id = self.next_request_id;
         self.next_request_id += 1;
         self.send_request(Request::GetHistory { id }).await?;
+        Ok(id)
+    }
+
+    /// Ask the server for the fully route-expanded model catalog.
+    ///
+    /// The bootstrap `History` payload deliberately ships model *names* only
+    /// (route expansion is expensive), and live bus catalog pushes are
+    /// downgraded to names-only above a size cap. Without this request a client
+    /// whose persisted catalog cache is missing or stale has nothing but
+    /// placeholder "remote-catalog" rows in `/model`.
+    pub async fn request_model_catalog(&mut self) -> Result<u64> {
+        let id = self.next_request_id;
+        self.next_request_id += 1;
+        self.send_request(Request::GetModelCatalog { id }).await?;
         Ok(id)
     }
 
@@ -859,11 +874,17 @@ impl RemoteConnection {
 
     /// Queue a soft interrupt message to be injected at the next safe point
     /// This doesn't cancel anything - the message is naturally incorporated
-    pub async fn soft_interrupt(&mut self, content: String, urgent: bool) -> Result<u64> {
+    pub async fn soft_interrupt(
+        &mut self,
+        content: String,
+        images: Vec<(String, String)>,
+        urgent: bool,
+    ) -> Result<u64> {
         let id = self.next_request_id;
         let request = Request::SoftInterrupt {
             id,
             content,
+            images,
             urgent,
         };
         self.next_request_id += 1;

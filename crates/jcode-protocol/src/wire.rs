@@ -60,6 +60,8 @@ pub enum Request {
     SoftInterrupt {
         id: u64,
         content: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        images: Vec<(String, String)>,
         /// If true, can skip remaining tools at injection point C
         #[serde(default)]
         urgent: bool,
@@ -854,8 +856,17 @@ pub enum ServerEvent {
 
     /// Provider has finished the visible assistant message, but the turn may still be
     /// finalizing bookkeeping such as session IDs or completion trailers.
+    ///
+    /// `stop_reason` carries the provider's own reason when it supplied one
+    /// (e.g. Anthropic `end_turn`, `tool_use`, `max_tokens`). It must be
+    /// forwarded rather than dropped: `max_tokens` is the only signal that a
+    /// turn was truncated by the output budget, and headless consumers
+    /// (`run --ndjson`) have no other way to detect it.
     #[serde(rename = "message_end")]
-    MessageEnd,
+    MessageEnd {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stop_reason: Option<String>,
+    },
 
     /// A transient transport fault interrupted the provider stream mid-response
     /// and the provider is retrying the request from the top. The client must

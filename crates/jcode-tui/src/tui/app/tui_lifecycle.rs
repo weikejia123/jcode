@@ -28,6 +28,7 @@ impl App {
             self.push_display_message(DisplayMessage::system(message).with_title(title));
         }
         self.interleave_message = None;
+        self.interleave_images.clear();
         self.rate_limit_pending_message = restored.rate_limit_pending_message;
         self.rate_limit_reset = restored.rate_limit_reset;
         self.observe_page_markdown = restored.observe_page_markdown;
@@ -79,6 +80,36 @@ impl App {
                 self.pending_turn = true;
             }
         }
+    }
+
+    /// Re-parse keybinding snapshots when the config cache has reloaded.
+    ///
+    /// The parsed bindings are cached on `App` for cheap per-keystroke lookup,
+    /// so without this poll a config.toml keybinding edit would only take
+    /// effect after a restart. Called from the idle tick in both local and
+    /// remote run loops; the generation check makes the no-change path a
+    /// single atomic load. Returns true when bindings were re-parsed.
+    pub(super) fn refresh_keybindings_if_config_reloaded(&mut self) -> bool {
+        // config() performs the throttled file-fingerprint staleness check and
+        // bumps the reload generation when config.toml changed on disk.
+        crate::config::config();
+        let generation = crate::config::config_reload_generation();
+        if generation == self.keybindings_config_generation {
+            return false;
+        }
+        self.keybindings_config_generation = generation;
+        self.model_switch_keys = keybind::load_model_switch_keys();
+        self.effort_switch_keys = keybind::load_effort_switch_keys();
+        self.centered_toggle_keys = keybind::load_centered_toggle_key();
+        self.toggle_keys = keybind::load_toggle_keys();
+        self.workspace_navigation_keys = keybind::load_workspace_navigation_keys();
+        self.dictation_key = keybind::load_dictation_key();
+        self.new_terminal_key = keybind::load_new_terminal_key();
+        self.open_resume_key = keybind::load_open_resume_key();
+        self.fallback_switch_key = keybind::load_fallback_switch_key();
+        self.scroll_keys = keybind::load_scroll_keys();
+        crate::logging::info("KEYBINDINGS: reloaded from config change");
+        true
     }
 
     pub(super) async fn begin_remote_send(
@@ -286,9 +317,8 @@ impl App {
         };
         self.overnight_auto_poke = None;
 
-        // Surface the streak in telemetry as an explicit auth_failed event so
-        // the dashboard can distinguish "breaker tripped on a dead credential"
-        // from one-off auth blips.
+        // Surface the streak as an explicit auth_failed telemetry event to
+        // distinguish "breaker tripped on a dead credential" from blips.
         let reason = crate::auth::login_diagnostics::classify_auth_failure_message(message);
         let provider = self.provider_name().to_string();
         crate::telemetry::record_auth_failed_reason(&provider, "session", reason.label());
@@ -375,6 +405,8 @@ impl App {
             pending_history_anchor: None,
             input: String::new(),
             command_candidates_cache: RefCell::new(None),
+            command_suggestions_cache: RefCell::new(None),
+            command_suggestions_epoch: std::cell::Cell::new(0),
             cursor_pos: 0,
             scroll_offset: 0,
             auto_scroll_paused: false,
@@ -397,9 +429,11 @@ impl App {
             context_info: crate::prompt::ContextInfo::default(),
             context_revision: 0,
             last_stream_activity: None,
+            last_user_interaction: None,
             stream_message_ended: false,
             deferred_stream_done_id: None,
             remote_resume_activity: None,
+            queued_followup_starved_since: None,
             pending_reload_reconnect_status: None,
             status: ProcessingStatus::default(),
             subagent_status: None,
@@ -411,8 +445,9 @@ impl App {
             last_api_completed_model: None,
             last_turn_input_tokens: None,
             pending_turn: false,
-            auto_poke_incomplete_todos: true,
+            auto_poke_incomplete_todos: features.auto_poke,
             todo_confidence_spike_challenged: false,
+            todo_gate_digest_delivered: false,
             todo_completion_gate_attempts: 0,
             turn_guardrail_stopped: false,
             consecutive_guardrail_stops: 0,
@@ -460,8 +495,10 @@ impl App {
             onboarding_startup_checked: false,
             onboarding_import_in_progress: None,
             onboarding_import_error: None,
+            onboarding_telemetry_choice_made: false,
             onboarding_import_failed_provider: None,
             onboarding_pending_model_validation: None,
+            onboarding_recent_project_prefetch: None,
             copy_badge_ui: CopyBadgeUiState::default(),
             copy_selection_mode: false,
             copy_selection_anchor: None,
@@ -572,6 +609,9 @@ impl App {
             todos_view_updated_at_ms: 0,
             todos_view_rendered_hash: 0,
             todo_card_rendered_hash: 0,
+            pinned_todos_payload: None,
+            pinned_todos_rendered_hash: 0,
+            pinned_todos_checked_at: None,
             last_side_panel_refresh: None,
             last_client_focus_recorded_at: None,
             last_client_focus_session_id: None,
@@ -611,6 +651,7 @@ impl App {
             open_resume_key: keybind::load_open_resume_key(),
             fallback_switch_key: keybind::load_fallback_switch_key(),
             scroll_keys: keybind::load_scroll_keys(),
+            keybindings_config_generation: crate::config::config_reload_generation(),
             dictation_session: None,
             dictation_in_flight: false,
             dictation_request_id: None,
@@ -622,8 +663,9 @@ impl App {
             status_notice: None,
             learn_hint: None,
             learn_hint_shown_this_session: false,
+            terminal_setup_hint_shown_this_session: false,
             swarm_hint_shown_this_session: false,
-            sponsor_disclosure_shown_this_session: false,
+            subscribe_nudge: Default::default(),
             hotkey_feedback: None,
             hotkey_usage: None,
             unknown_hotkey_seen: std::collections::HashMap::new(),
@@ -632,6 +674,7 @@ impl App {
             experimental_feature_warnings_seen: HashSet::new(),
             active_experimental_feature_notice: None,
             interleave_message: None,
+            interleave_images: Vec::new(),
             pending_soft_interrupts: Vec::new(),
             pending_soft_interrupt_requests: Vec::new(),
             autoreview_after_current_turn: false,
@@ -697,6 +740,8 @@ impl App {
             productivity_refreshing: false,
             last_overnight_card_refresh: None,
             workspace_client: crate::tui::workspace_client::WorkspaceClientState::default(),
+            prompt_history_search: None,
+            persisted_prompt_history: None,
         };
 
         for notice in app.provider.drain_startup_notices() {
@@ -799,6 +844,8 @@ impl App {
             pending_history_anchor: None,
             input: String::new(),
             command_candidates_cache: RefCell::new(None),
+            command_suggestions_cache: RefCell::new(None),
+            command_suggestions_epoch: std::cell::Cell::new(0),
             cursor_pos: 0,
             scroll_offset: 0,
             auto_scroll_paused: false,
@@ -821,9 +868,11 @@ impl App {
             context_info,
             context_revision: 0,
             last_stream_activity: None,
+            last_user_interaction: None,
             stream_message_ended: false,
             deferred_stream_done_id: None,
             remote_resume_activity: None,
+            queued_followup_starved_since: None,
             pending_reload_reconnect_status: None,
             status: ProcessingStatus::default(),
             subagent_status: None,
@@ -835,8 +884,9 @@ impl App {
             last_api_completed_model: None,
             last_turn_input_tokens: None,
             pending_turn: false,
-            auto_poke_incomplete_todos: true,
+            auto_poke_incomplete_todos: features.auto_poke,
             todo_confidence_spike_challenged: false,
+            todo_gate_digest_delivered: false,
             todo_completion_gate_attempts: 0,
             turn_guardrail_stopped: false,
             consecutive_guardrail_stops: 0,
@@ -884,8 +934,10 @@ impl App {
             onboarding_startup_checked: false,
             onboarding_import_in_progress: None,
             onboarding_import_error: None,
+            onboarding_telemetry_choice_made: false,
             onboarding_import_failed_provider: None,
             onboarding_pending_model_validation: None,
+            onboarding_recent_project_prefetch: None,
             copy_badge_ui: CopyBadgeUiState::default(),
             copy_selection_mode: false,
             copy_selection_anchor: None,
@@ -996,6 +1048,9 @@ impl App {
             todos_view_updated_at_ms: 0,
             todos_view_rendered_hash: 0,
             todo_card_rendered_hash: 0,
+            pinned_todos_payload: None,
+            pinned_todos_rendered_hash: 0,
+            pinned_todos_checked_at: None,
             last_side_panel_refresh: None,
             last_client_focus_recorded_at: None,
             last_client_focus_session_id: None,
@@ -1035,6 +1090,7 @@ impl App {
             open_resume_key: keybind::load_open_resume_key(),
             fallback_switch_key: keybind::load_fallback_switch_key(),
             scroll_keys: keybind::load_scroll_keys(),
+            keybindings_config_generation: crate::config::config_reload_generation(),
             dictation_session: None,
             dictation_in_flight: false,
             dictation_request_id: None,
@@ -1046,8 +1102,9 @@ impl App {
             status_notice: None,
             learn_hint: None,
             learn_hint_shown_this_session: false,
+            terminal_setup_hint_shown_this_session: false,
             swarm_hint_shown_this_session: false,
-            sponsor_disclosure_shown_this_session: false,
+            subscribe_nudge: Default::default(),
             hotkey_feedback: None,
             hotkey_usage: None,
             unknown_hotkey_seen: std::collections::HashMap::new(),
@@ -1056,6 +1113,7 @@ impl App {
             experimental_feature_warnings_seen: HashSet::new(),
             active_experimental_feature_notice: None,
             interleave_message: None,
+            interleave_images: Vec::new(),
             pending_soft_interrupts: Vec::new(),
             pending_soft_interrupt_requests: Vec::new(),
             autoreview_after_current_turn: false,
@@ -1121,6 +1179,8 @@ impl App {
             productivity_refreshing: false,
             last_overnight_card_refresh: None,
             workspace_client: crate::tui::workspace_client::WorkspaceClientState::default(),
+            prompt_history_search: None,
+            persisted_prompt_history: None,
         };
 
         for notice in app.provider.drain_startup_notices() {
@@ -1192,8 +1252,7 @@ impl App {
         );
         self.remote_session_id = Some(session_id.to_string());
         session.strip_transcript_for_remote_client();
-        // The strip above clears the large transcript vectors but keeps their
-        // capacity; free the backing buffers before retaining the session.
+        // Strip clears transcript vectors but keeps capacity; free buffers.
         session.messages.shrink_to_fit();
         session.env_snapshots.shrink_to_fit();
         session.memory_injections.shrink_to_fit();

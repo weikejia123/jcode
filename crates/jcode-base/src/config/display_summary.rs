@@ -49,6 +49,7 @@ impl Config {
 - Auto server reload: {}
 - Mouse capture: {}
 - Debug socket: {}
+- Emoji: {}
 - Idle animation: {}
 - Prompt entry animation: {}
 - Compact notifications: {}
@@ -61,10 +62,13 @@ impl Config {
 - Copy badge Alt label: {}
 - Show agentgrep output: {}
 - Tool call details: {}
+- Theme: {}
+- Custom colors: {}
 
 **Features:**
 - Memory: {}
 - Swarm: {}
+- Auto-poke: {}
 - Message timestamps: {}
 - Persist memory injections: {}
 - KV cache miss notices: {}
@@ -165,6 +169,7 @@ impl Config {
             self.display.auto_server_reload,
             self.display.mouse_capture,
             self.display.debug_socket,
+            self.display.emoji,
             self.display.idle_animation,
             self.display.prompt_entry_animation,
             self.display.compact_notifications,
@@ -189,8 +194,28 @@ impl Config {
             },
             self.display.show_agentgrep_output,
             self.display.tool_call_details,
+            if self.display.theme.trim().is_empty() {
+                "auto"
+            } else {
+                self.display.theme.trim()
+            },
+            if self.display.colors.is_empty() {
+                "default (run /colors to customize)".to_string()
+            } else {
+                format!(
+                    "{} custom ({})",
+                    self.display.colors.len(),
+                    self.display
+                        .colors
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            },
             self.features.memory,
             self.features.swarm,
+            self.features.auto_poke,
             self.features.message_timestamps,
             self.features.persist_memory_injections,
             self.features.kv_cache_miss_notices,

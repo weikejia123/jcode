@@ -1,12 +1,14 @@
 use super::*;
 
-/// Effective websocket completion/idle budget in seconds. Uses the built-in
-/// default, extended by `[provider] stream_idle_timeout_secs` when the user
-/// raises it above the default so slow reasoning models don't get cut off at
-/// the hardcoded budget on one transport but not another (issue #434).
-pub(super) fn effective_ws_completion_timeout_secs() -> u64 {
-    WEBSOCKET_COMPLETION_TIMEOUT_SECS.max(jcode_base::provider::stream_idle_timeout().as_secs())
-}
+#[path = "openai_rate_limit_format.rs"]
+mod openai_rate_limit_format;
+use self::openai_rate_limit_format::format_rate_limit_error;
+#[path = "openai_stream_timeout.rs"]
+mod openai_stream_timeout;
+pub(super) use self::openai_stream_timeout::reasoning_payload;
+use self::openai_stream_timeout::{
+    effective_https_idle_timeout, effective_ws_completion_timeout_secs,
+};
 
 pub(super) async fn openai_access_token(
     credentials: &Arc<RwLock<CodexCredentials>>,
@@ -115,15 +117,17 @@ pub(super) async fn stream_response(
         }
     }
 
-    emit_connection_phase(&tx, ConnectionPhase::Connecting).await;
+    emit_connection_phase(&tx, ConnectionPhase::SendingRequest).await;
     let connect_start = std::time::Instant::now();
+    let idle_timeout = effective_https_idle_timeout(&request);
 
-    let response = builder
-        .json(&request)
-        .send()
-        .await
-        .context("Failed to send request to OpenAI API")
-        .map_err(OpenAIStreamFailure::Other)?;
+    let response = jcode_provider_core::transport::send_with_initial_response_timeout(
+        builder.json(&request),
+        idle_timeout,
+    )
+    .await
+    .context("Failed to send request to OpenAI API")
+    .map_err(OpenAIStreamFailure::Other)?;
 
     let connect_ms = connect_start.elapsed().as_millis();
     jcode_base::logging::info(&format!(
@@ -219,12 +223,9 @@ pub(super) async fn stream_response(
             }
         }
 
-        // For rate limits, include retry info in the error
+        // For rate limits, format structured payloads into a readable message.
         let msg = if status == StatusCode::TOO_MANY_REQUESTS {
-            let wait_info = retry_after
-                .map(|hint| format!(" (retry after {}s)", hint.remaining().as_secs()))
-                .unwrap_or_default();
-            format!("Rate limited{}: {}", wait_info, body)
+            format_rate_limit_error(&body, retry_after.map(|hint| hint.remaining()))
         } else {
             format!("OpenAI API error {}: {}", status, body)
         };
@@ -251,8 +252,6 @@ pub(super) async fn stream_response(
     // minutes get cancelled prematurely. Resolved from
     // `[provider] stream_idle_timeout_secs` / `JCODE_STREAM_IDLE_TIMEOUT_SECS`
     // (issue #434).
-    let idle_timeout = jcode_base::provider::stream_idle_timeout();
-
     use futures::StreamExt;
     loop {
         let result = match tokio::time::timeout(idle_timeout, stream.next()).await {
@@ -749,6 +748,7 @@ pub(super) async fn try_persistent_ws_continuation(
 
     // Send the continuation request on the existing WebSocket
     let send_started_at = Instant::now();
+    emit_connection_phase(tx, jcode_message_types::ConnectionPhase::SendingRequest).await;
     if let Err(e) = state.ws_stream.send(WsMessage::Text(request_text)).await {
         return PersistentWsResult::Failed(format!("send error: {}", e));
     }
@@ -772,7 +772,7 @@ pub(super) async fn try_persistent_ws_continuation(
     let mut last_api_activity_at = stream_started;
     let mut saw_api_activity = false;
     let mut logged_first_server_event = false;
-    let ws_completion_timeout_secs = effective_ws_completion_timeout_secs();
+    let ws_completion_timeout_secs = effective_ws_completion_timeout_secs(&continuation_request);
 
     loop {
         if stream_started.elapsed() >= Duration::from_secs(ws_completion_timeout_secs) {
@@ -1165,6 +1165,7 @@ pub(super) async fn stream_response_websocket_persistent(
         ))
     })?;
     let request_send_started_at = Instant::now();
+    emit_connection_phase(&tx, ConnectionPhase::SendingRequest).await;
     ws_stream
         .send(WsMessage::Text(request_text))
         .await
@@ -1187,7 +1188,7 @@ pub(super) async fn stream_response_websocket_persistent(
     let mut response_id: Option<String> = None;
     let connected_at = Instant::now();
     let mut logged_first_server_event = false;
-    let ws_completion_timeout_secs = effective_ws_completion_timeout_secs();
+    let ws_completion_timeout_secs = effective_ws_completion_timeout_secs(&request_event);
 
     loop {
         if !saw_response_completed

@@ -1,5 +1,7 @@
 #![cfg_attr(test, allow(clippy::items_after_test_module))]
 
+pub(crate) mod model_names;
+
 use crate::todo::TodoItem;
 use crate::tui::info_widget::{AmbientWidgetData, GitInfo, MemoryInfo};
 use crate::tui::session_picker::ResumeTarget;
@@ -19,7 +21,7 @@ type GitInfoCacheEntry = (std::time::Instant, Option<GitInfo>, bool);
 static GIT_INFO_CACHE: Mutex<Option<GitInfoCacheEntry>> = Mutex::new(None);
 
 /// Stale-while-revalidate cache for per-session todos plus their goal-level
-/// assessments (hill-climbability etc.). Module-level so the app can force a
+/// assessments (closed feedback loop etc.). Module-level so the app can force a
 /// refresh the moment it persists a todo write locally, instead of showing
 /// the previous list until the TTL lapses.
 type TodosCacheEntry = (
@@ -229,62 +231,9 @@ pub(super) fn debug_response_path() -> PathBuf {
     std::env::temp_dir().join("jcode_debug_response")
 }
 
-/// Parse rate limit reset time from error message
-/// Returns the Duration until rate limit resets, if this is a rate limit error
-pub(super) fn parse_rate_limit_error(error: &str) -> Option<Duration> {
-    let error_lower = error.to_lowercase();
-
-    if !error_lower.contains("rate limit")
-        && !error_lower.contains("rate_limit")
-        && !error_lower.contains("429")
-        && !error_lower.contains("too many requests")
-        && !error_lower.contains("hit your limit")
-    {
-        return None;
-    }
-
-    if let Some(idx) = error_lower.find("retry") {
-        let after = &error_lower[idx..];
-        for word in after.split_whitespace() {
-            if let Ok(secs) = word
-                .trim_matches(|c: char| !c.is_ascii_digit())
-                .parse::<u64>()
-                && secs > 0
-                && secs < 86400
-            {
-                return Some(Duration::from_secs(secs));
-            }
-        }
-    }
-
-    if let Some(idx) = error_lower.find("resets") {
-        let after = &error_lower[idx..];
-        for word in after.split_whitespace() {
-            let word = word.trim_matches(|c: char| c == '·' || c == ' ');
-            if (word.ends_with("am") || word.ends_with("pm"))
-                && let Some(duration) = parse_clock_time_to_duration(word)
-            {
-                return Some(duration);
-            }
-        }
-    }
-
-    if let Some(idx) = error_lower.find("reset") {
-        let after = &error_lower[idx..];
-        for word in after.split_whitespace() {
-            if let Ok(secs) = word
-                .trim_matches(|c: char| !c.is_ascii_digit())
-                .parse::<u64>()
-                && secs > 0
-                && secs < 86400
-            {
-                return Some(Duration::from_secs(secs));
-            }
-        }
-    }
-
-    None
-}
+#[path = "helpers_rate_limit_parse.rs"]
+mod rate_limit_parse;
+pub(super) use rate_limit_parse::parse_rate_limit_error;
 
 pub(super) fn is_context_limit_error(error: &str) -> bool {
     if crate::provider::openai_request::is_openai_encrypted_content_too_large_error(error) {
@@ -380,11 +329,56 @@ pub(super) fn format_tokens(tokens: u64) -> String {
     }
 }
 
+/// Test-only clipboard sink.
+///
+/// A headless CI runner has no Wayland socket, no X11 display, and a
+/// non-terminal stdout, so every real clipboard path correctly fails and
+/// `copy_to_clipboard` returns false. Tests that only care about shortcut
+/// wiring (does Alt+S reach the copy handler with the right text?) then fail
+/// for an environment reason rather than a code reason. Capturing into this
+/// sink lets those tests assert the wiring *and* the copied text without
+/// depending on a desktop session (refs #596).
+#[cfg(test)]
+static TEST_CLIPBOARD: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Test-only: route clipboard writes into an in-process sink instead of the OS.
+#[cfg(test)]
+pub(crate) fn capture_clipboard_for_tests() {
+    if let Ok(mut sink) = TEST_CLIPBOARD.lock() {
+        *sink = Some(String::new());
+    }
+}
+
+/// Test-only: the last text written while capture was enabled.
+#[cfg(test)]
+pub(crate) fn captured_clipboard_for_tests() -> Option<String> {
+    TEST_CLIPBOARD.lock().ok().and_then(|sink| sink.clone())
+}
+
+/// Test-only: stop capturing and drop any captured text.
+#[cfg(test)]
+pub(crate) fn stop_capturing_clipboard_for_tests() {
+    if let Ok(mut sink) = TEST_CLIPBOARD.lock() {
+        *sink = None;
+    }
+}
+
 /// Copy text to clipboard. On Windows and macOS, the native clipboard API
 /// (arboard) is authoritative, with OSC 52 as a remote-session fallback.
 /// Elsewhere, try wl-copy first (Wayland), then OSC 52 (works over SSH /
 /// Docker / tmux), then arboard as a final fallback.
 pub(super) fn copy_to_clipboard(text: &str) -> bool {
+    // Tests that opted into capture never touch the real clipboard, so they
+    // behave identically on a desktop and on a headless runner.
+    #[cfg(test)]
+    if let Ok(mut sink) = TEST_CLIPBOARD.lock()
+        && let Some(captured) = sink.as_mut()
+    {
+        captured.clear();
+        captured.push_str(text);
+        return true;
+    }
+
     // On Windows, the native clipboard API must run before OSC 52. Writing an
     // OSC 52 sequence to stdout "succeeds" even when the console (conhost,
     // older Windows Terminal) silently ignores it, which reported "Copied"
@@ -498,90 +492,6 @@ pub(super) fn effort_display_label(effort: &str) -> &str {
         "none" => "None",
         other => other,
     }
-}
-
-/// Turn a raw model id into a friendlier display name for onboarding copy.
-///
-/// Examples:
-///   `gpt-5.5`            -> `GPT-5.5`
-///   `claude-opus-4-8`    -> `Claude Opus 4.8`
-///   `claude-opus-4-6[1m]`-> `Claude Opus 4.6 (1M)`
-///   `gemini-2.5-pro`     -> `Gemini 2.5 Pro`
-/// Unknown shapes are returned mostly as-is so we never hide the real id.
-pub(crate) fn pretty_model_display_name(model: &str) -> String {
-    let model = model.trim();
-    if model.is_empty() {
-        return "your default model".to_string();
-    }
-
-    // Preserve and re-attach a `[1m]` long-context suffix as " (1M)".
-    let (core, long_context) = match model.strip_suffix("[1m]") {
-        Some(stripped) => (stripped, true),
-        None => (model, false),
-    };
-
-    let lower = core.to_ascii_lowercase();
-    let mut pretty = if let Some(rest) = lower.strip_prefix("gpt-") {
-        // OpenAI: keep the dotted version, just upcase the family.
-        format!("GPT-{}", rest)
-    } else if lower.starts_with("claude-") {
-        // Anthropic: claude-opus-4-8 -> Claude Opus 4.8. Convert the trailing
-        // `-<major>-<minor>` version into `<major>.<minor>` and title-case the
-        // family/tier words.
-        prettify_claude(core)
-    } else {
-        // Gemini and everything else: just title-case the dashed segments.
-        title_case_dashed(core)
-    };
-
-    if long_context {
-        pretty.push_str(" (1M)");
-    }
-    pretty
-}
-
-/// Render `claude-opus-4-8` as `Claude Opus 4.8`.
-fn prettify_claude(core: &str) -> String {
-    let parts: Vec<&str> = core.split('-').collect();
-    let mut words: Vec<String> = Vec::new();
-    let mut i = 0;
-    while i < parts.len() {
-        let part = parts[i];
-        // Collapse a `<major>-<minor>` numeric pair into `<major>.<minor>`.
-        if part.chars().all(|c| c.is_ascii_digit())
-            && i + 1 < parts.len()
-            && parts[i + 1].chars().all(|c| c.is_ascii_digit())
-        {
-            words.push(format!("{}.{}", part, parts[i + 1]));
-            i += 2;
-            continue;
-        }
-        words.push(title_case_word(part));
-        i += 1;
-    }
-    words.join(" ")
-}
-
-/// Title-case a dash-separated id (`gemini-2.5-pro` -> `Gemini 2.5 Pro`).
-fn title_case_dashed(core: &str) -> String {
-    core.split('-')
-        .map(title_case_word)
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Title-case a single token, leaving anything containing a digit untouched so
-/// version fragments like `4.8` or `2.5` are preserved.
-fn title_case_word(word: &str) -> String {
-    if word.is_empty() {
-        return String::new();
-    }
-    if word.chars().any(|c| c.is_ascii_digit()) {
-        return word.to_string();
-    }
-    let mut chars = word.chars();
-    let first = chars.next().unwrap().to_ascii_uppercase();
-    format!("{}{}", first, chars.as_str())
 }
 
 pub(super) fn inferred_reasoning_efforts(
@@ -1113,7 +1023,7 @@ pub(super) fn gather_git_info() -> Option<GitInfo> {
 
 /// Fetch a session's todos plus its goal-level assessments through the same
 /// stale-while-revalidate cache, so the info widget can render goal metadata
-/// (hill-climbability and objectives) without extra disk reads per frame.
+/// (closed feedback loop and objectives) without extra disk reads per frame.
 pub(super) fn gather_todos_and_goals_for_session(
     session_id: Option<&str>,
 ) -> (Vec<TodoItem>, Vec<crate::todo::TodoGoal>) {

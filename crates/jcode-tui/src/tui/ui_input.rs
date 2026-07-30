@@ -125,6 +125,89 @@ fn command_suggestions_active(app: &dyn TuiState, suggestions: &[(String, &'stat
         && (matches!(mode, ComposerMode::SlashCommand) || !app.is_processing())
 }
 
+/// Draw the Ctrl+R reverse prompt-history search overlay. Reuses the
+/// command-palette positioning: floats below (or above) the input without
+/// reserving layout height. Shows the query line plus the match list with the
+/// selected row highlighted.
+pub(super) fn draw_prompt_history_search_overlay(
+    frame: &mut Frame,
+    app: &dyn TuiState,
+    area: Rect,
+) {
+    let Some(view) = app.prompt_history_search() else {
+        return;
+    };
+    const VISIBLE_LIMIT: usize = 8;
+
+    let accent = Style::default().fg(rgb(255, 213, 128));
+    let dim = Style::default().fg(dim_color());
+    let normal = Style::default().fg(rgb(128, 203, 196));
+
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    lines.push(Line::from(vec![
+        Span::styled("(history search) ", dim),
+        Span::styled(view.query.clone(), accent),
+        Span::styled("█", accent),
+        Span::styled(
+            "  ↑↓ select · ↵ insert · Esc cancel",
+            Style::default().fg(dim_color()),
+        ),
+    ]));
+
+    if view.matches.is_empty() {
+        if view.query.trim().is_empty() {
+            lines.push(Line::from(Span::styled("  type to search history", dim)));
+        } else {
+            lines.push(Line::from(Span::styled("  no matches", dim)));
+        }
+    } else {
+        // Keep the selected row inside the visible window.
+        let window_start = view
+            .selected
+            .saturating_sub(VISIBLE_LIMIT.saturating_sub(1))
+            .min(
+                view.matches
+                    .len()
+                    .saturating_sub(VISIBLE_LIMIT.min(view.matches.len())),
+            );
+        let visible = view
+            .matches
+            .iter()
+            .enumerate()
+            .skip(window_start)
+            .take(VISIBLE_LIMIT);
+        for (index, preview) in visible {
+            let is_selected = index == view.selected;
+            let marker = if is_selected { "▸ " } else { "  " };
+            let style = if is_selected { accent } else { normal };
+            let mut spans = vec![
+                Span::styled(marker.to_string(), style),
+                Span::styled(preview.clone(), style),
+            ];
+            if index == window_start + VISIBLE_LIMIT - 1
+                && view.matches.len() > window_start + VISIBLE_LIMIT
+            {
+                spans.push(Span::styled(
+                    format!(
+                        "  +{} more",
+                        view.matches.len() - (window_start + VISIBLE_LIMIT)
+                    ),
+                    dim,
+                ));
+            }
+            lines.push(Line::from(spans));
+        }
+    }
+
+    let Some(rect) = command_suggestions_overlay_rect(area, lines.len() as u16, frame.area())
+    else {
+        return;
+    };
+    lines.truncate(rect.height as usize);
+    frame.render_widget(ratatui::widgets::Clear, rect);
+    frame.render_widget(Paragraph::new(lines), rect);
+}
+
 /// Draw the command-suggestion popover as a late overlay pass.
 ///
 /// Called after the chunked layout (and info widgets) have rendered so the
@@ -519,6 +602,7 @@ fn connection_phase_label(phase: &ConnectionPhase) -> String {
     match phase {
         ConnectionPhase::Authenticating => "refreshing auth".to_string(),
         ConnectionPhase::Connecting => "connecting".to_string(),
+        ConnectionPhase::SendingRequest => "sending context".to_string(),
         ConnectionPhase::WaitingForResponse => "waiting for response".to_string(),
         ConnectionPhase::Streaming => "streaming".to_string(),
         ConnectionPhase::Retrying { attempt, max } => format!("retrying {}/{}", attempt, max),
@@ -762,6 +846,9 @@ pub(super) fn draw_status(frame: &mut Frame, app: &dyn TuiState, area: Rect, pen
                     crate::message::ConnectionPhase::Connecting if phase_elapsed > 10.0 => {
                         rgb(255, 193, 7)
                     }
+                    crate::message::ConnectionPhase::SendingRequest if phase_elapsed > 10.0 => {
+                        rgb(255, 193, 7)
+                    }
                     _ => dim_color(),
                 };
                 let mut spans = vec![
@@ -947,7 +1034,7 @@ pub(super) fn draw_status(frame: &mut Frame, app: &dyn TuiState, area: Rect, pen
                 }
 
                 spans.push(Span::styled(
-                    " · Alt+B bg",
+                    format!(" · {} bg", jcode_tui_core::keybind::alt_chord("B")),
                     Style::default().fg(rgb(100, 100, 100)),
                 ));
 
@@ -1886,13 +1973,20 @@ pub(super) fn draw_overscroll_status(frame: &mut Frame, app: &dyn TuiState, area
         spans.extend(overscroll_context_bar(used, limit, 10));
     }
 
-    // Working directory last, shown as a home-relative path.
+    // Working directory last, shown as a home-relative path, with the git
+    // branch alongside when available.
     if let Some(dir) = app.working_dir().and_then(|d| overscroll_dir_label(&d)) {
         if !spans.is_empty() {
             spans.push(sep());
         }
         spans.push(Span::styled(" ", Style::default().fg(rgb(140, 180, 255))));
         spans.push(Span::styled(dir, Style::default().fg(rgb(140, 140, 150))));
+        if let Some(branch) = overscroll_git_branch(&data) {
+            spans.push(Span::styled(
+                format!("  {branch}"),
+                Style::default().fg(rgb(150, 170, 140)),
+            ));
+        }
     }
 
     let total_width = area.width as usize;
@@ -2000,6 +2094,20 @@ fn overscroll_truncate_spans(spans: Vec<Span<'static>>, max_width: usize) -> Vec
 }
 
 /// Format a working dir path home-relative (~/foo/bar), keeping the last 2 segments.
+/// Compact git branch label for the status line and fact stack. Truncated so
+/// long branch names cannot crowd out the other facts.
+fn overscroll_git_branch(data: &crate::tui::info_widget::InfoWidgetData) -> Option<String> {
+    let branch = data.git_info.as_ref()?.branch.trim();
+    if branch.is_empty() {
+        return None;
+    }
+    let mut label: String = branch.chars().take(24).collect();
+    if branch.chars().count() > 24 {
+        label.push('…');
+    }
+    Some(label)
+}
+
 fn overscroll_dir_label(path: &str) -> Option<String> {
     session_facts::dir_label_short(path)
 }
@@ -2297,9 +2405,17 @@ fn right_fact_lines(app: &dyn TuiState) -> Vec<RightFactLine> {
     if let Some(dir) = app
         .working_dir()
         .and_then(|path| overscroll_dir_label(&path))
-        && let Some(line) = RightFactLine::new(vec![Span::styled(dir, right_fact_neutral_style())])
     {
-        lines.push(line);
+        let mut spans = vec![Span::styled(dir, right_fact_neutral_style())];
+        if let Some(branch) = overscroll_git_branch(&data) {
+            spans.push(Span::styled(
+                format!("  {branch}"),
+                right_fact_neutral_style(),
+            ));
+        }
+        if let Some(line) = RightFactLine::new(spans) {
+            lines.push(line);
+        }
     }
 
     if let Some((used, limit)) = overscroll_context_usage(&data) {

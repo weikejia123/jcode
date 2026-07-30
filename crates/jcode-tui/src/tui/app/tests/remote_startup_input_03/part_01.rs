@@ -664,6 +664,8 @@ fn test_startup_update_checking_stays_quiet_until_update_work_starts() {
 
     app.handle_update_status(UpdateStatus::Downloading {
         version: "v1.2.3".to_string(),
+        downloaded: 512 * 1024,
+        total: Some(1024 * 1024),
     });
 
     let update_cards = app
@@ -677,11 +679,15 @@ fn test_startup_update_checking_stays_quiet_until_update_work_starts() {
         .last()
         .expect("expected update display message");
     assert!(message.content.contains("Status: downloading v1.2.3"));
-    assert!(message.content.contains("restart automatically"));
-    assert_eq!(
-        app.status_notice(),
-        Some("Updating to v1.2.3...".to_string())
+    assert!(
+        message.content.contains("50%"),
+        "download card should show progress: {}",
+        message.content
     );
+    assert!(message.content.contains("reload in place"));
+    let notice = app.status_notice().expect("expected download notice");
+    assert!(notice.starts_with("Updating to v1.2.3..."));
+    assert!(notice.contains("50%"), "notice should show progress: {notice}");
 
     app.handle_update_status(UpdateStatus::Installed {
         version: "v1.2.3".to_string(),
@@ -802,17 +808,17 @@ fn test_startup_update_error_replaces_checking_card() {
         .last()
         .expect("expected update display message");
     assert_eq!(message.title.as_deref(), Some("Update"));
-    assert!(message.content.contains("Status: failed"));
-    assert!(message.content.contains("Check failed: offline"));
+    // The failure card and notice are one short line each; the verbose error
+    // stays in the log.
+    assert_eq!(message.content, "Status: failed (offline)");
     assert!(
-        message
-            .content
-            .contains("Continuing with the current version.")
+        !message.content.contains('\n'),
+        "failure card should be one line: {}",
+        message.content
     );
-    assert_eq!(
-        app.status_notice(),
-        Some("Update failed; continuing current version".to_string())
-    );
+    let notice = app.status_notice().expect("expected failure notice");
+    assert_eq!(notice, "Update failed: offline");
+    assert!(!notice.contains('\n'), "notice should be one line: {notice}");
     assert!(app.background_client_action.is_none());
     assert!(app.pending_background_client_reload.is_none());
 }

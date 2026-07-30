@@ -39,10 +39,12 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "JCODE_AMBIENT_PROVIDER",
     "JCODE_AMBIENT_VISIBLE",
     "JCODE_ANIMATION_FPS",
+    "JCODE_AUTO_POKE",
     "JCODE_AUTOJUDGE_ENABLED",
     "JCODE_AUTOJUDGE_MODEL",
     "JCODE_AUTOREVIEW_ENABLED",
     "JCODE_AUTOREVIEW_MODEL",
+    "JCODE_AUTO_POKE",
     "JCODE_AUTO_SERVER_RELOAD",
     "JCODE_BING_API_KEY",
     "JCODE_BING_API_KEY_ENV",
@@ -55,6 +57,7 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "JCODE_COPILOT_PREMIUM",
     "JCODE_CROSS_PROVIDER_FAILOVER",
     "JCODE_DEBUG_SOCKET",
+    "JCODE_DEFAULT_REASONING_DISPLAY",
     "JCODE_DICTATION_COMMAND",
     "JCODE_DICTATION_KEY",
     "JCODE_DICTATION_MODE",
@@ -117,6 +120,7 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "JCODE_MODEL_SWITCH_PREV_KEY",
     "JCODE_MOUSE_CAPTURE",
     "JCODE_NEW_TERMINAL_KEY",
+    "JCODE_NO_EMOJI",
     "JCODE_NTFY_SERVER",
     "JCODE_NTFY_TOPIC",
     "JCODE_OPENAI_NATIVE_COMPACTION_MODE",
@@ -128,6 +132,7 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "JCODE_PRESERVE_REASONING_CONTEXT",
     "JCODE_PERFORMANCE",
     "JCODE_PIN_IMAGES",
+    "JCODE_PIN_TODOS",
     "JCODE_PREVENT_SLEEP_WHILE_STREAMING",
     "JCODE_PROVIDER",
     "JCODE_PROMPT_ENTRY_ANIMATION",
@@ -161,6 +166,7 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "JCODE_TELEGRAM_BOT_TOKEN",
     "JCODE_TELEGRAM_CHAT_ID",
     "JCODE_TELEGRAM_REPLY_ENABLED",
+    "JCODE_TOOL_CALL_DETAILS",
     "JCODE_TOOL_PROFILE",
     "JCODE_TOOLS",
     "JCODE_TRUSTED_EXTERNAL_AUTH_SOURCES",
@@ -401,6 +407,7 @@ pub fn invalidate_config_cache() {
 }
 
 fn notify_config_reloaded() {
+    CONFIG_RELOAD_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     for listener in CONFIG_RELOAD_LISTENERS
         .read()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -408,6 +415,20 @@ fn notify_config_reloaded() {
     {
         listener();
     }
+}
+
+/// Monotonic counter bumped every time the config cache reloads.
+///
+/// Callers that snapshot config-derived state (e.g. the TUI's parsed
+/// keybindings) can poll this cheaply and re-derive their snapshot when the
+/// generation changes, giving instant hot-reload of config edits without a
+/// restart.
+static CONFIG_RELOAD_GENERATION: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Current config reload generation. Increments after every cache reload.
+pub fn config_reload_generation() -> u64 {
+    CONFIG_RELOAD_GENERATION.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Listeners invoked after the config cache reloads.
@@ -507,7 +528,10 @@ pub struct Config {
     /// Auto-judge configuration
     pub autojudge: AutoJudgeConfig,
 
-    /// Sponsored discovery configuration
+    /// Partner discovery configuration. Skipped when it matches the shipped
+    /// default so saving config never bakes today's default into the file (see
+    /// [`sponsors_is_default`]).
+    #[serde(skip_serializing_if = "sponsors_is_default")]
     pub sponsors: SponsorsConfig,
 
     /// Global "launch a new jcode" hotkeys (macOS). Baked once by auto-import.
@@ -699,3 +723,26 @@ mod env_overrides;
 #[cfg(test)]
 #[path = "config_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "config_color_tests.rs"]
+mod color_tests;
+
+/// Whether integration discovery settings carry no information beyond the shipped
+/// default, so `[sponsors]` can be left out of written config files.
+///
+/// Discovery originally shipped opt-in with `enabled = false`, and because
+/// config saves serialize the whole struct, any save during that window froze
+/// the old default into the user's file and permanently disabled discovery even
+/// after the default flipped. Omitting default sections prevents a repeat.
+fn sponsors_is_default(sponsors: &SponsorsConfig) -> bool {
+    sponsors.enabled && is_default_discovery_endpoint(&sponsors.endpoint)
+}
+
+/// Endpoints that only ever came from a shipped default, never a user choice.
+fn is_default_discovery_endpoint(endpoint: &str) -> bool {
+    matches!(
+        endpoint.trim_end_matches('/'),
+        "https://api.jcode.sh/v1/discovery" | "https://api.solosystems.dev/v1/discovery"
+    )
+}

@@ -653,7 +653,9 @@ pub(super) fn prepare_messages(
     // A cached prepared frame intentionally owns only image ids. Recover any
     // staged source evicted by the byte budget or a visibility toggle before an
     // exact frame-cache hit can bypass the normal anchored-image resolver.
+    let restage_start = Instant::now();
     super::inline_image_ui::restage_requested_payloads(app);
+    super::note_prep_restage(restage_start.elapsed());
     if cfg!(test) {
         return Arc::new(prepare_messages_inner(app, width, height));
     }
@@ -726,6 +728,41 @@ pub(super) fn prepare_messages(
     }
 
     prepared
+}
+
+/// Top padding used to vertically center the header on the initial empty
+/// screen. Derived only from the persistent header height (not suggestions)
+/// so the same value can be re-applied above the header once messages exist,
+/// keeping the header from jumping when the first prompt is sent.
+fn initial_header_pad_top(height: u16, header_lines: usize) -> usize {
+    let input_reserve = 4;
+    let available = (height as usize).saturating_sub(input_reserve);
+    available.saturating_sub(header_lines) / 2
+}
+
+/// Build the lines that fill the top padding above the header. Unseen release
+/// notes (the "Updates" box) render inside this padding, bottom-aligned so any
+/// leftover space stays at the top. With no unseen updates this is just blank
+/// padding. The returned vec is always exactly `pad_top` lines tall so the
+/// header position never shifts.
+fn build_top_pad_lines(width: u16, pad_top: usize) -> Vec<Line<'static>> {
+    let mut lines: Vec<Line<'static>> = Vec::with_capacity(pad_top);
+    if pad_top == 0 {
+        return lines;
+    }
+    // Leave one blank line between the box and the header.
+    let box_budget = pad_top.saturating_sub(1);
+    let boxed = header::build_updates_box_lines(width, box_budget);
+    let blanks = pad_top.saturating_sub(boxed.len() + usize::from(!boxed.is_empty()));
+    for _ in 0..blanks {
+        lines.push(Line::from(""));
+    }
+    if !boxed.is_empty() {
+        lines.extend(boxed);
+        lines.push(Line::from(""));
+    }
+    debug_assert_eq!(lines.len(), pad_top);
+    lines
 }
 
 fn prepare_messages_inner(app: &dyn TuiState, width: u16, height: u16) -> PreparedChatFrame {
@@ -851,14 +888,15 @@ fn prepare_messages_inner(app: &dyn TuiState, width: u16, height: u16) -> Prepar
             }
         }
 
-        let content_height = wrapped_lines.len();
-        let input_reserve = 4;
-        let available = (height as usize).saturating_sub(input_reserve);
-        let pad_top = available.saturating_sub(content_height) / 2;
-        let mut centered = Vec::with_capacity(pad_top + content_height);
-        for _ in 0..pad_top {
-            centered.push(Line::from(""));
-        }
+        // Vertically center the initial empty screen, but compute the padding
+        // from the header height alone so the exact same padding can be
+        // re-applied above the header once the conversation starts. That keeps
+        // the header at the same screen position when the first prompt
+        // arrives; the padding then simply scrolls away as the transcript
+        // grows instead of vanishing in one jump.
+        let pad_top = initial_header_pad_top(height, header_prepared.wrapped_lines.len());
+        let mut centered = build_top_pad_lines(width, pad_top);
+        centered.reserve(wrapped_lines.len());
         centered.extend(wrapped_lines);
         let wrapped_lines = centered;
         let wrapped_line_count = wrapped_lines.len();
@@ -891,8 +929,37 @@ fn prepare_messages_inner(app: &dyn TuiState, width: u16, height: u16) -> Prepar
     }
 
     let compose_start = Instant::now();
+    // Re-apply the initial-screen centering pad above the header so the
+    // transition from the empty screen to the first message does not shift
+    // anything. The pad scrolls off naturally as the transcript grows.
+    let pad_top = initial_header_pad_top(height, header_prepared.wrapped_lines.len());
+    let padded_header = if pad_top > 0 {
+        let mut lines = build_top_pad_lines(width, pad_top);
+        lines.reserve(header_prepared.wrapped_lines.len());
+        lines.extend(header_prepared.wrapped_lines.iter().cloned());
+        let count = lines.len();
+        let plain = Arc::new(lines.iter().map(ui::line_plain_text).collect());
+        Arc::new(PreparedMessages {
+            wrapped_lines: lines,
+            wrapped_plain_lines: plain,
+            wrapped_copy_offsets: Arc::new(vec![0; count]),
+            raw_plain_lines: Arc::new(Vec::new()),
+            wrapped_line_map: Arc::new(Vec::new()),
+            wrapped_user_indices: Vec::new(),
+            wrapped_user_prompt_starts: Vec::new(),
+            wrapped_user_prompt_ends: Vec::new(),
+            user_prompt_texts: Vec::new(),
+            image_regions: Vec::new(),
+            edit_tool_ranges: Vec::new(),
+            copy_targets: Vec::new(),
+            message_boundaries: Vec::new(),
+            mermaid_pending_epoch: None,
+        })
+    } else {
+        header_prepared
+    };
     let frame = PreparedChatFrame::from_sections(vec![
-        (PreparedSectionKind::Header, header_prepared),
+        (PreparedSectionKind::Header, padded_header),
         (PreparedSectionKind::Body, body_prepared),
         (PreparedSectionKind::InlineImages, inline_images_prepared),
         (PreparedSectionKind::BatchProgress, batch_progress_prepared),
@@ -927,7 +994,17 @@ fn prepare_messages_inner(app: &dyn TuiState, width: u16, height: u16) -> Prepar
 /// - disk-backed surfaces (auth line, goal badge, skills list, update
 ///   badges, changelog) - refreshed only when the TTL lapses, since they
 ///   change rarely and independently of the render loop.
-const HEADER_PREP_CACHE_TTL: std::time::Duration = std::time::Duration::from_millis(1000);
+///
+/// The TTL is sized to the *data*, not the frame rate. A 1s TTL made the
+/// header cost bimodal: cache hits were <1ms, but every lapse paid the full
+/// disk-probe rebuild (measured p50 48ms, max 273ms in TUI_SLOW_FRAME logs).
+/// Since `AuthStatus` already self-caches for 30-60s, ~29 of every 30
+/// second-boundary rebuilds re-walked goals, skills, and update badges only to
+/// produce a byte-identical header. Matching the auth cache floor keeps the
+/// refresh cadence meaningful while removing the redundant rebuilds; anything
+/// a user can change from inside the TUI is already covered by the signature
+/// and still repaints immediately.
+const HEADER_PREP_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30);
 
 struct HeaderPrepCacheState {
     signature: u64,
@@ -939,6 +1016,19 @@ fn header_prep_cache() -> &'static std::sync::Mutex<Option<HeaderPrepCacheState>
     static CACHE: std::sync::OnceLock<std::sync::Mutex<Option<HeaderPrepCacheState>>> =
         std::sync::OnceLock::new();
     CACHE.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+/// Drop the prepared-header cache so the next frame re-probes the disk-backed
+/// surfaces (auth inventory, skills, goal badge, update badges).
+///
+/// The TTL alone is sized for background drift. Actions taken *inside* the TUI
+/// that change those surfaces - completing `/login`, adding an account,
+/// reloading skills - must be reflected immediately rather than up to a full
+/// TTL later, so they call this directly.
+pub(crate) fn invalidate_header_prep_cache() {
+    if let Ok(mut cache) = header_prep_cache().lock() {
+        *cache = None;
+    }
 }
 
 /// Hash of the header inputs that are cheap to read every frame. Anything
@@ -963,6 +1053,11 @@ fn header_prep_signature(app: &dyn TuiState, width: u16) -> u64 {
     app.connected_clients().hash(&mut hasher);
     app.server_sessions().len().hash(&mut hasher);
     app.working_dir().hash(&mut hasher);
+    // Credential changes alter the auth inventory lines. Hashing the auth
+    // generation (cheap atomic load) means `/login` and account edits repaint
+    // the header on the very next frame instead of waiting out the TTL, which
+    // is what lets the TTL itself be sized for slow background drift.
+    crate::auth::auth_status_generation().hash(&mut hasher);
     // The goal badge renders the focused side-panel page title when a goal
     // page is focused; keying on it keeps focus changes instant.
     if let Some(page) = app.side_panel().focused_page() {
