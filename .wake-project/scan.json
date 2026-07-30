@@ -1,9 +1,9 @@
 {
   "schema_version": "9",
   "project_id": "019fa34f-ca5e-75e2-b2e2-d6ddb6f23dcc",
-  "scan_id": "019fa34f-cc9e-7f82-974f-67e16f3582cf",
-  "scanned_at": "2026-07-27T11:22:23Z",
-  "duration_ms": 255,
+  "scan_id": "019fb0ad-b505-7260-8cf0-15d9e8466463",
+  "scanned_at": "2026-07-30T01:40:01Z",
+  "duration_ms": 250,
   "is_git_repo": true,
   "git": {
     "root": "/Users/weikejia/CODE/my-agent-group/projects/coder-agent/jcode",
@@ -31,14 +31,14 @@
         "repo": "jcode"
       }
     ],
-    "head": "9a08d68d",
+    "head": "68bd4680",
     "path_prefix": "",
     "has_commit_hooks": false,
     "has_upstream": true,
     "is_detached_head": false,
-    "dirty_file_count": 1,
+    "dirty_file_count": 2,
     "has_untracked": true,
-    "ahead_count": 8,
+    "ahead_count": 9,
     "behind_count": 0,
     "latest_tag": "v0.54.4",
     "submodules": []
@@ -562,7 +562,7 @@
   ],
   "timeline": {
     "first_commit_at": "2026-01-05T01:43:29-08:00",
-    "last_commit_at": "2026-07-24T13:34:08+08:00",
+    "last_commit_at": "2026-07-27T19:22:23+08:00",
     "shallow_clone": false,
     "last_file_modified_at": "2026-07-24T08:40:28Z",
     "last_core_file_modified_at": "2026-07-23T23:46:34Z",

@@ -1,8 +1,8 @@
 {
   "schema_version": "9",
   "project_id": "019fa34f-ca5e-75e2-b2e2-d6ddb6f23dcc",
-  "scan_id": "019fa34f-cc9e-7f82-974f-67e16f3582cf",
-  "scanned_at": "2026-07-27T11:22:23Z",
+  "scan_id": "019fb0ad-b505-7260-8cf0-15d9e8466463",
+  "scanned_at": "2026-07-30T01:40:01Z",
   "tech_stack": [
     {
       "name": "Crossterm",
