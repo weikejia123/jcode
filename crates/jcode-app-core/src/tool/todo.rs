@@ -529,13 +529,13 @@ impl Tool for TodoTool {
                             },
                             "group": {
                                 "type": "string",
-                                "description": "Optional group label. Todos sharing a group render together under one header. Use one group per coherent goal (e.g. 'optimize rendering'). When the user steers into new work, start a new group instead of renaming the existing one. Omit for an ungrouped flat list."
+                                "description": "Optional group label; one group per coherent goal, new direction = new group. Omit for flat list."
                             },
                             "confidence": {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 100,
-                                "description": "Self-assessed confidence, 0-100, that this todo can be completed correctly. Reassess it as evidence accumulates while working."
+                                "description": "Confidence 0-100 that this todo can be completed correctly; reassess as evidence accumulates."
                             },
                             "completion_confidence": {
                                 "type": "integer",
@@ -548,24 +548,24 @@ impl Tool for TodoTool {
                 },
                 "plan": {
                     "type": "object",
-                    "description": "Plan-level understanding of the user's request, covering the whole todo list. Send it on the first write and whenever your understanding changes.",
+                    "description": "Plan-level understanding of the request. Send on first write and whenever understanding changes.",
                     "required": ["user_intention", "understands_user_intent"],
                     "properties": {
                         "user_intention": {
                             "type": "string",
-                            "description": "Concise statement of what the user actually wants: their underlying reason and desired end state for this work. Omit on later updates to retain the stored intention."
+                            "description": "What the user actually wants: underlying reason and desired end state. Omit later to retain."
                         },
                         "understands_user_intent": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 100,
-                            "description": "Self-assessment, 0-100, of how well you understand what the user actually wants and how faithfully this plan represents it: their underlying goal, what they left implicit, and what outcome would make them consider this done. Before scoring, form a requirement inventory covering outcomes, deliverables, constraints, prohibited actions, integration paths, edge cases, and necessary follow-through, and check that the plan and its feedback loops name an explicit observation or check for each item. A generic instruction to run tests, verify, or review does not establish coverage: tests count only for behaviors they actually enforce, while non-testable requirements such as edit scope, dependency limits, required reporting, branches or commits, and prohibited modifications need separate explicit checks. Score low when interpretations of the request still materially diverge, you are guessing at intent, or any material item is unrepresented. Prefer resolving low understanding by re-reading the request and investigating the conversation and codebase over asking the user, since asking blocks them."
+                            "description": "0-100: how well you understand what the user actually wants. Score low when guessing at intent."
                         }
                     }
                 },
                 "goals": {
                     "type": "array",
-                    "description": "Optional goal-level assessments, one per todo group. Use group: null for an ungrouped list. Stored assessments for groups omitted from an update are retained.",
+                    "description": "Goal-level assessments, one per todo group (null = ungrouped). Omitted groups are retained.",
                     "items": {
                         "type": "object",
                         "required": ["closed_feedback_loop", "feedback_loop"],
@@ -578,17 +578,17 @@ impl Tool for TodoTool {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 100,
-                                "description": "Self-assessment, 0-100: how much of this goal's correctness the `feedback_loop` below can tell you on its own, without your judgment or the user's."
+                                "description": "0-100: how much of this goal's correctness the feedback_loop can verify on its own."
                             },
                             "feedback_loop": {
                                 "type": "string",
-                                "description": "Concrete requirement-to-check process used to compare progress across iterations and detect whether the user's intention is satisfied or violated. Name an explicit observation or check for every material behavior, deliverable, constraint, prohibited action, integration path, edge case, and necessary follow-through. Generic phrases such as run tests, verify, or review count only for requirements those named checks demonstrably enforce; add separate checks for non-testable prompt requirements."
+                                "description": "Requirement-to-check process: an explicit observation or check for each requirement of this goal."
                             },
                             "end_to_end_ownership": {
                                 "type": "integer",
                                 "minimum": 0,
                                 "maximum": 100,
-                                "description": "Completion-time self-assessment, 0-100, of whether the full intended user outcome and its necessary follow-through were delivered, rather than only the immediate implementation. Use only when completing the goal."
+                                "description": "Completion-time 0-100: was the full intended user outcome delivered, with follow-through."
                             }
                         }
                     }
@@ -728,7 +728,7 @@ mod tests {
         assert!(!item_props.contains_key("closed_feedback_loop"));
         assert_eq!(
             item_props["confidence"]["description"],
-            "Self-assessed confidence, 0-100, that this todo can be completed correctly. Reassess it as evidence accumulates while working."
+            "Confidence 0-100 that this todo can be completed correctly; reassess as evidence accumulates."
         );
 
         let plan_props = props["plan"]
@@ -779,37 +779,38 @@ mod tests {
             .get("description")
             .and_then(Value::as_str)
             .expect("alignment score should describe representation coverage");
+        assert!(alignment_description.contains("what the user actually wants"));
+        assert!(alignment_description.contains("Score low when guessing"));
+        // The detailed calibration rubric moved out of the always-on schema
+        // into the gate continuation messages, which are paid only when a
+        // write is rejected.
         for required_concept in [
-            "what the user actually wants",
             "requirement inventory",
-            "explicit observation or check",
-            "generic instruction to run tests",
-            "tests count only for behaviors they actually enforce",
-            "non-testable requirements",
-            "prohibited modifications",
-            "integration path",
-            "edge case",
-            "necessary follow-through",
-            "over asking the user",
+            "outcomes, deliverables, constraints, prohibited actions",
+            "integration paths, edge cases, and necessary follow-through",
+            "Do not ask the user",
         ] {
             assert!(
-                alignment_description.contains(required_concept),
-                "alignment description omitted {required_concept}: {alignment_description}"
+                crate::todo::TODO_INTENT_UNDERSTANDING_CONTINUATION_MESSAGE
+                    .contains(required_concept),
+                "intent gate message omitted {required_concept}"
             );
         }
         let feedback_description = goal_props["feedback_loop"]
             .get("description")
             .and_then(Value::as_str)
             .expect("feedback loop should describe requirement-to-check coverage");
+        assert!(feedback_description.contains("requirement-to-check"));
+        assert!(feedback_description.contains("explicit observation or check"));
         for required_concept in [
-            "requirement-to-check",
-            "explicit observation or check",
-            "prohibited action",
-            "non-testable prompt requirements",
+            "reports back on each requirement",
+            "run tests, verify, or review count only",
+            "non-testable requirements",
         ] {
             assert!(
-                feedback_description.contains(required_concept),
-                "feedback description omitted {required_concept}: {feedback_description}"
+                crate::todo::TODO_CLOSED_FEEDBACK_LOOP_CONTINUATION_MESSAGE
+                    .contains(required_concept),
+                "feedback gate message omitted {required_concept}"
             );
         }
         assert!(
@@ -822,9 +823,8 @@ mod tests {
             .get("description")
             .and_then(Value::as_str)
             .expect("ownership should have a neutral description");
-        assert!(ownership_description.contains("Use only when completing the goal."));
         assert!(ownership_description.contains("full intended user outcome"));
-        assert!(ownership_description.contains("necessary follow-through"));
+        assert!(ownership_description.contains("follow-through"));
         assert!(!ownership_description.contains("90"));
         assert!(
             !ownership_description
