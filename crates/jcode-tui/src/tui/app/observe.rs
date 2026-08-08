@@ -201,7 +201,7 @@ fn todo_gate_notice(name: &str, output: &str, is_error: bool) -> Option<&'static
     }
 
     if output.contains(crate::todo::TODO_OWNERSHIP_CONTINUATION_MESSAGE) {
-        Some("🔍 Checking the full outcome was owned end to end...")
+        Some("🔍 Checking the delivery state of the finished work...")
     } else if !is_error
         && output.contains(crate::todo::TODO_CLOSED_FEEDBACK_LOOP_CONTINUATION_MESSAGE)
     {
@@ -311,10 +311,20 @@ mod tests {
         )
         .expect("closed feedback loop gate should produce a notice");
 
-        assert!(ownership.contains("follow through"));
-        assert!(feedback.contains("feedback loop"));
-        assert!(!ownership.contains(&crate::todo::QUALITY_GATE_THRESHOLD.to_string()));
-        assert!(!feedback.contains(&crate::todo::QUALITY_GATE_THRESHOLD.to_string()));
+        // Assert the *intent* of each notice rather than incidental phrasing:
+        // these strings get reworded, and 7a5ad004f changed "follow through"
+        // to "owned end to end" without updating this test, turning it red on
+        // master. What must hold is that each gate names what is being checked.
+        assert!(
+            ownership.contains("delivery state"),
+            "ownership notice should say what is being checked: {ownership}"
+        );
+        assert!(
+            feedback.contains("verify"),
+            "feedback-loop notice should say what is being checked: {feedback}"
+        );
+        assert!(!ownership.chars().any(|ch| ch.is_ascii_digit()));
+        assert!(!feedback.chars().any(|ch| ch.is_ascii_digit()));
         assert!(todo_gate_notice("bash", ownership, true).is_none());
     }
 }

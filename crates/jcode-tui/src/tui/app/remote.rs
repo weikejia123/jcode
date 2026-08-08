@@ -64,6 +64,22 @@ pub(super) use server_events::handle_server_event;
 
 const CONNECTION_MESSAGE_TITLE: &str = "Connection";
 const RELOAD_MARKER_MAX_AGE: Duration = Duration::from_secs(30);
+
+fn handle_ctrl_kill_to_end(app: &mut App, code: KeyCode, modifiers: KeyModifiers) -> bool {
+    // Match the local draft semantics before remote navigation can claim Ctrl+K.
+    // Ctrl+Shift+K remains reserved for scrolling.
+    if modifiers.contains(KeyModifiers::CONTROL)
+        && !modifiers.contains(KeyModifiers::SHIFT)
+        && matches!(code, KeyCode::Char('k'))
+        && !app.input.is_empty()
+    {
+        input::delete_input_to_end(app);
+        return true;
+    }
+
+    false
+}
+
 pub(super) enum RemoteEventOutcome {
     Continue,
     Reconnect,
@@ -304,6 +320,7 @@ pub(super) async fn handle_tick(app: &mut App, remote: &mut RemoteConnection) ->
     detect_and_cancel_stall(app, remote).await;
     needs_redraw |= recover_stuck_remote_history(app, remote).await;
     needs_redraw |= detect_starved_queued_followup(app);
+    needs_redraw |= app.maybe_finish_background_client_reload();
     needs_redraw
 }
 
@@ -1823,6 +1840,10 @@ fn handle_disconnected_key_internal(
     let mut modifiers = modifiers;
     ctrl_bracket_fallback_to_esc(&mut code, &mut modifiers);
 
+    if handle_ctrl_kill_to_end(app, code, modifiers) {
+        return Ok(());
+    }
+
     if input::handle_navigation_shortcuts(app, code, modifiers) {
         return Ok(());
     }
@@ -1834,7 +1855,7 @@ fn handle_disconnected_key_internal(
                 return Ok(());
             }
             KeyCode::Char('l') if !app.diff_pane_visible() => {
-                app.clear_view_keep_context();
+                app.clear_view_terminal_style();
                 return Ok(());
             }
             _ => {
@@ -1882,11 +1903,17 @@ fn handle_disconnected_key_internal(
                 app.paste_from_clipboard();
                 return Ok(());
             }
+            // Cmd+L mirrors Ctrl+L: terminal-style clear (blank spacer
+            // pushes the transcript up into scrollback).
+            KeyCode::Char('l') => {
+                app.clear_view_terminal_style();
+                return Ok(());
+            }
             _ => {}
         }
     }
 
-    if code == KeyCode::Enter && modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::SUPER) {
+    if input::is_alternate_enter(code, modifiers) {
         queue_message_for_reconnect(app);
         return Ok(());
     }

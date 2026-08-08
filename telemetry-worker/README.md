@@ -41,12 +41,14 @@ Events are dual-written to two stores with different jobs:
 
 ### D1 size self-defense
 
-D1 hard-caps databases at 500 MB on the free plan; at the cap every insert
-500s and telemetry silently stops (June 2026: ~3 days lost). Defenses, in
-order:
+D1 hard-caps databases at 10 GB on Workers Paid (500 MB on Free). The first
+5 GB of account-wide paid storage is included. The worker therefore uses a
+4.5 GB soft limit, leaving room for other databases and for pruning to catch
+up before the 10 GB hard cap. At the old free-plan cap every insert failed and
+telemetry silently stopped (June 2026: ~3 days lost). Defenses, in order:
 
 - The worker observes `meta.size_after` on every D1 write. Past the soft
-  limit (`D1_SOFT_LIMIT_BYTES`, just above the file's high-water mark) it
+  budget limit (`D1_SOFT_LIMIT_BYTES`) it
   triggers an **emergency prune** (halved retention windows, rate-limited to
   one per 10 minutes per isolate) instead of waiting for the nightly cron.
 - If an insert fails with a SQLITE_FULL-class error, the emergency prune runs
@@ -130,10 +132,89 @@ npm run migrate:auth-failure-reason
 npm run migrate:web-subscription
 npm run migrate:discovery
 npm run migrate:web-quality
+npm run migrate:model-prices
 
-# Run the health dashboard query
+# Run a dashboard query. These go through scripts/run-dashboard.mjs, which
+# sends the file via `--command` instead of `--file`: wrangler's `--file` path
+# is D1's *import* API and prints only "Rows read / Rows written / Database
+# size", discarding the result set, so these panels used to render no data.
 npm run health
+npm run dau
+npm run users
+npm run token-value
 ```
+
+## Token value dashboard
+
+`npm run token-value` reports the list-price dollar value of the token flow
+through jcode, priced per model rather than with one blended rate. Setup:
+
+```bash
+npm run migrate:model-prices   # creates model_prices (migration 0023)
+npm run sync:model-prices      # fills it from https://models.dev/api.json
+npm run token-value            # daily / per-model / summary panels
+npm run token-value:daily      # just the per-day series, in date order
+```
+
+`npm run token-value:daily` is the plain time series when all you want is
+"dollars per day": one row per day with the tokens, sessions, and distinct
+users behind it. There is deliberately no per-user dollar column, because it
+tracked tokens-per-user almost exactly (coefficient of variation 0.147 vs
+0.142 over a 10-day sample): the blended rate per million tokens barely moves,
+so it was the same series twice in different units.
+
+`scripts/sync-model-prices.mjs` reads the model labels actually observed in
+telemetry (`events.model_end` on `session_end` rows) and matches each one to a
+models.dev price, normalizing the gateway aliases users produce
+(`cc/claude-opus-5`, `openai/gpt-5.6-sol`, `claude-opus-4-5-20251101`,
+`...-4-8@Anthropic`, `-xhigh` effort suffixes). Re-run it after new models
+appear; it is an idempotent upsert. Current token coverage is ~97%, with the
+remainder being users' private gateway aliases (`my-coding`, `SeaaveyCombo`)
+that cannot be resolved to a public price.
+
+Three things to know before quoting the number:
+
+- **Cache accounting is provider-specific.** OpenAI-compatible APIs report
+  cached tokens as a *subset* of prompt tokens; Anthropic reports them as a
+  disjoint bucket. `model_prices.input_includes_cache_read` drives the
+  correction. Skipping it overcharges OpenAI traffic ~10x, and since cache
+  reads are ~85% of all tokens, that error dominates the total.
+- **It is list price, not spend.** Most traffic runs on subscriptions (Claude
+  Max, ChatGPT Pro, Copilot) or free routes, so read it as "list-price
+  equivalent value of tokens served".
+- **Check `priced_token_pct` / `unpriced_tokens`.** Every panel reports them.
+  If coverage drops, re-run the sync before trusting the dollar figure.
+
+
+## Reading DAU without fooling yourself
+
+`npm run dau` leads with `headline_users_24h` (= `meaningful_release_24h_noci`):
+real users, release channel, CI excluded. Use that number.
+
+Two traps the panel now guards against:
+
+- **Partial day.** The `today` tiers cover a partial UTC day, so every morning
+  they look like a cliff. `day_elapsed_pct` plus `release_users_sofar` /
+  `..._yday` / `..._7d` compare today against the *same clock window* on prior
+  days, and `pace_vs_yday` / `pace_vs_7d` are the ratios (>1.0 = ahead). These
+  are same-window comparisons, not extrapolations, because DAU is a distinct
+  count and does not scale linearly with elapsed time.
+- **Dev-build traffic.** `debug` and `git_checkout` ids are overwhelmingly
+  throwaway: a `session_start` and an `onboarding_step`, no `session_end`
+  (7-day completion ratio 0.02 for `debug` vs 0.21 for `release`). Their volume
+  swings ~5x day to day, which is enough to make a flat week look like
+  alternating spikes and cliffs in any raw-id metric. `dev_build_24h` tracks
+  them so the swing is visible instead of silently moving the headline.
+
+This is also why the overall `lifecycle_completion_ratio` in `health.sql` is
+low: it is a blend across channels, and the dev channels drag it down.
+
+Release's own ratio was ~0.25 for a separate reason: `begin_session` replaced
+a live in-process session without ending it, so every superseded session's
+`session_start` was orphaned. Those now emit a `session_end` with
+`session_stop_reason = 'superseded'`. Expect the release ratio to climb as
+clients upgrade, and expect `superseded` to be a large share of ends: it means
+one process opened several sessions, not that anything failed.
 
 ## Event types
 
